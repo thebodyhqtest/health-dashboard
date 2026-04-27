@@ -1,0 +1,24 @@
+{
+  "supplements": [
+    {
+      "name": "Vitamin D3",
+      "dose": "5000 IU",
+      "frequency": "daily",
+      "timing": "morning with food",
+      "brand": "Example Brand",
+      "started": "2025-06-01",
+      "reason": "Optimize vitamin D levels",
+      "related_markers": ["Vitamin D"]
+    },
+    {
+      "name": "Magnesium Glycinate",
+      "dose": "400mg",
+      "frequency": "daily",
+      "timing": "before bed",
+      "brand": "Example Brand",
+      "started": "2025-08-01",
+      "reason": "Sleep quality, recovery",
+      "related_markers": ["Magnesium"]
+    }
+  ]
+}

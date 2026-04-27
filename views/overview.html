@@ -1,0 +1,62 @@
+<!-- Overview — Landing page -->
+<div class="view-overview">
+    <div class="card">
+        <div class="card-header">
+            <div>
+                <h1 class="card-title">Welcome to Your Health Dashboard</h1>
+                <p class="card-subtitle">Your personal health data, all in one place.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats — populated dynamically when data exists -->
+    <div class="metric-grid" id="overviewMetrics">
+        <!-- Metrics appear here once you add test data -->
+    </div>
+
+    <!-- Getting Started -->
+    <div class="card" id="gettingStarted">
+        <div class="card-header">
+            <h2 class="card-title">🚀 Getting Started</h2>
+        </div>
+        <div style="color: var(--text-secondary); line-height: 1.8; font-size: 14px;">
+            <p>Your dashboard is ready. Here's how to add your data:</p>
+            <br>
+            <p><strong style="color: var(--accent);">1. Upload blood work</strong><br>
+            Tell Claude: "Here are my blood test results" and paste or upload your data.</p>
+            <br>
+            <p><strong style="color: var(--accent);">2. Add other tests</strong><br>
+            VO2 Max, DEXA scan, gut biome — just tell Claude what you have.</p>
+            <br>
+            <p><strong style="color: var(--accent);">3. Build your protocol</strong><br>
+            Tell Claude about your supplements, routines, and health goals.</p>
+            <br>
+            <p style="color: var(--text-muted); font-size: 13px;">
+                Every time you update your data, the dashboard reflects it instantly — no redeployment needed.
+            </p>
+        </div>
+    </div>
+</div>
+
+<script>
+async function init_overview() {
+    // Try to load overview data from API
+    const data = await App.fetchData('overview');
+    if (!data) return; // No API configured yet or no data — show getting started
+
+    const metricsEl = document.getElementById('overviewMetrics');
+    const gettingStarted = document.getElementById('gettingStarted');
+
+    // If we have data, hide getting started and show metrics
+    if (data.metrics && data.metrics.length > 0) {
+        gettingStarted.style.display = 'none';
+        metricsEl.innerHTML = data.metrics.map(m => `
+            <div class="metric-card">
+                <div class="metric-label">${m.label}</div>
+                <div class="metric-value">${App.formatValue(m.value)} <span class="metric-unit">${m.unit || ''}</span></div>
+                ${m.status ? App.badge(m.status) : ''}
+            </div>
+        `).join('');
+    }
+}
+</script>

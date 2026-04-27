@@ -1,0 +1,19 @@
+# === PRIVATE DATA — NEVER COMMIT ===
+/data/
+data/
+
+# === Dependencies ===
+node_modules/
+server/node_modules/
+
+# === Environment ===
+.env
+.env.local
+.env.production
+
+# === Vercel ===
+.vercel/
+
+# === OS ===
+.DS_Store
+Thumbs.db

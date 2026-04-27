@@ -1,0 +1,14 @@
+{
+  "name": "health-dashboard-api",
+  "version": "1.0.0",
+  "description": "VPS API for Health Dashboard — serves private health data",
+  "main": "api.js",
+  "scripts": {
+    "start": "node api.js",
+    "dev": "node api.js"
+  },
+  "dependencies": {
+    "express": "^4.18.0",
+    "cors": "^2.8.5"
+  }
+}

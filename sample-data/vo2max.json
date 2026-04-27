@@ -1,0 +1,17 @@
+{
+  "tests": [
+    {
+      "date": "2026-01-20",
+      "facility": "Example Facility",
+      "vo2max": 42.5,
+      "unit": "mL/kg/min",
+      "percentile": 75,
+      "age": 30,
+      "gender": "male",
+      "protocol": "Bruce Treadmill",
+      "max_hr": 185,
+      "resting_hr": 58,
+      "notes": "Fasted test, morning session"
+    }
+  ]
+}

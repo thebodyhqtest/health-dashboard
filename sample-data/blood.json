@@ -1,0 +1,42 @@
+{
+  "tests": [
+    {
+      "date": "2026-01-15",
+      "lab": "Example Lab",
+      "markers": [
+        {
+          "name": "Vitamin D",
+          "value": 45,
+          "unit": "ng/mL",
+          "range": { "low": 30, "high": 100 },
+          "optimal": { "low": 40, "high": 60 },
+          "category": "Vitamins"
+        },
+        {
+          "name": "Total Cholesterol",
+          "value": 195,
+          "unit": "mg/dL",
+          "range": { "low": 0, "high": 200 },
+          "optimal": { "low": 150, "high": 200 },
+          "category": "Lipids"
+        },
+        {
+          "name": "Glucose (Fasting)",
+          "value": 92,
+          "unit": "mg/dL",
+          "range": { "low": 70, "high": 100 },
+          "optimal": { "low": 75, "high": 90 },
+          "category": "Metabolic"
+        },
+        {
+          "name": "TSH",
+          "value": 2.1,
+          "unit": "mIU/L",
+          "range": { "low": 0.4, "high": 4.0 },
+          "optimal": { "low": 1.0, "high": 2.5 },
+          "category": "Thyroid"
+        }
+      ]
+    }
+  ]
+}

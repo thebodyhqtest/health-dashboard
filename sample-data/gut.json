@@ -1,0 +1,33 @@
+{
+  "tests": [
+    {
+      "date": "2026-01-25",
+      "provider": "Example Provider",
+      "scores": {
+        "gut_health": 72,
+        "inflammatory_activity": 35,
+        "digestive_efficiency": 80,
+        "gut_lining_health": 65,
+        "protein_fermentation": 40
+      },
+      "scores_scale": "0-100",
+      "top_recommendations": [
+        "Increase prebiotic fiber intake",
+        "Add fermented foods daily",
+        "Reduce processed sugar"
+      ],
+      "key_bacteria": [
+        {
+          "name": "Akkermansia muciniphila",
+          "level": "low",
+          "note": "Important for gut lining integrity"
+        },
+        {
+          "name": "Bifidobacterium",
+          "level": "normal",
+          "note": "Supports immune function"
+        }
+      ]
+    }
+  ]
+}
