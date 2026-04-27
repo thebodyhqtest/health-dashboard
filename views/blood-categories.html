@@ -1,0 +1,32 @@
+<!-- Blood Categories -->
+<div class="view-blood-categories">
+    <div class="card"><h1 class="card-title">📂 Categories</h1><p class="card-subtitle">Markers grouped by body system.</p></div>
+    <div id="categoriesContent"><div class="empty-state"><h3>No blood data yet</h3><p>Upload blood test results to see markers grouped by category.</p></div></div>
+</div>
+<script>
+async function init_blood_categories() {
+    const data = await App.fetchData('blood');
+    if (!data || !data.tests || data.tests.length === 0) return;
+    const latest = data.tests[data.tests.length - 1];
+    const cats = {};
+    for (const m of latest.markers) { const c = m.category || 'Other'; if (!cats[c]) cats[c] = []; cats[c].push(m); }
+    let html = '';
+    for (const [cat, markers] of Object.entries(cats).sort()) {
+        const oor = markers.filter(m => m.range && (m.value < m.range.low || m.value > m.range.high));
+        const color = oor.length === 0 ? 'green' : oor.length <= 2 ? 'amber' : 'red';
+        html += `<div class="card card-${color}" style="margin-bottom:12px;">
+            <div class="card-header"><h2 class="card-title" style="font-size:16px;">${cat}</h2><span class="badge badge-${oor.length === 0 ? 'optimal' : 'warning'}">${markers.length} markers${oor.length > 0 ? `, ${oor.length} OOR` : ''}</span></div>`;
+        html += markers.map(m => {
+            const isOOR = m.range && (m.value < m.range.low || m.value > m.range.high);
+            return `<div class="flag-item" style="margin-bottom:2px;">
+                <span class="flag-dot ${isOOR ? 'red' : 'green'}"></span>
+                <span style="flex:1;"><strong>${m.name}</strong></span>
+                <span style="font-weight:600; color:${isOOR ? 'var(--danger)' : 'var(--success)'};">${App.formatValue(m.value)} ${m.unit || ''}</span>
+                <span style="font-size:11px; color:var(--text-muted); margin-left:8px;">${m.range ? m.range.low + '–' + m.range.high : ''}</span>
+            </div>`;
+        }).join('');
+        html += '</div>';
+    }
+    document.getElementById('categoriesContent').innerHTML = html;
+}
+</script>

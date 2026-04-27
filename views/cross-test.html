@@ -1,0 +1,78 @@
+<!-- Cross-Test Insights — Correlations across test types -->
+<div class="view-crosstest">
+    <div class="card">
+        <h1 class="card-title">🔗 Cross-Test Insights</h1>
+        <p class="card-subtitle">How your tests connect — where they agree and where they disagree.</p>
+    </div>
+
+    <!-- Theme selector -->
+    <div class="filter-row" id="themeSelector"></div>
+
+    <!-- Detail panel -->
+    <div id="themeDetail">
+        <div class="empty-state">
+            <h3>Upload results from multiple tests</h3>
+            <p>Blood, DNA methylation, gut microbiome, scans — upload 2 or more test types to see how they connect and where they agree or disagree.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+async function init_cross_test() {
+    const data = await App.fetchData('cross-test');
+    if (!data || !data.themes || data.themes.length === 0) return;
+
+    const selector = document.getElementById('themeSelector');
+    const detail = document.getElementById('themeDetail');
+
+    selector.innerHTML = data.themes.map((t, i) => `
+        <span class="pill" data-idx="${i}">${t.icon || '🔗'} ${t.name}</span>
+    `).join('');
+
+    function showTheme(idx) {
+        const theme = data.themes[idx];
+        const verdictColors = {
+            'All Clear': 'var(--success)', 'Active Monitoring': 'var(--warning)', 'Watch': 'var(--warning)',
+            'Hidden Signal': '#FB923C', 'Mixed': '#FB923C', 'Alert': 'var(--danger)', 'Triple Confirmed': 'var(--danger)'
+        };
+        const vColor = verdictColors[theme.verdict] || 'var(--text-muted)';
+
+        detail.innerHTML = `
+            <div class="card" style="border-left:3px solid ${vColor};">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <h2 class="card-title">${theme.icon || ''} ${theme.name}</h2>
+                    <span class="pill" style="border:1px solid ${vColor}; color:${vColor};">${theme.verdict}</span>
+                </div>
+                ${theme.markers ? `
+                    <table class="data-table">
+                        <thead><tr><th>Marker</th><th>Source</th><th>Value</th><th>Status</th><th>Note</th></tr></thead>
+                        <tbody>${theme.markers.map(m => `
+                            <tr>
+                                <td><strong>${m.name}</strong></td>
+                                <td><span class="pill" style="font-size:11px;">${m.source}</span></td>
+                                <td>${m.value} ${m.unit || ''}</td>
+                                <td><span class="flag-dot ${m.status === 'good' || m.status === 'green' ? 'green' : m.status === 'watch' || m.status === 'amber' ? 'amber' : 'red'}" style="display:inline-block;"></span></td>
+                                <td style="font-size:12px; color:var(--text-secondary);">${m.note || ''}</td>
+                            </tr>
+                        `).join('')}</tbody>
+                    </table>
+                ` : ''}
+                ${theme.insight ? `
+                    <div style="margin-top:20px; padding:16px; background:rgba(255,255,255,0.02); border-radius:var(--radius-sm); font-size:14px; line-height:1.7; color:var(--text-secondary);">
+                        <strong style="color:var(--text-primary);">Cross-Test Insight</strong><br><br>
+                        ${theme.insight}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    selector.querySelectorAll('.pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            selector.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            showTheme(pill.dataset.idx);
+        });
+    });
+}
+</script>

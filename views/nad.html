@@ -1,0 +1,20 @@
+<!-- Nad -->
+<div class="view-nad">
+    <div class="card">
+        <h1 class="card-title">Nad</h1>
+        <p class="card-subtitle">View and track your Nad results.</p>
+    </div>
+    <div id="nadContent">
+        <div class="empty-state">
+            <h3>No Nad data yet</h3>
+            <p>Upload your Nad results to Claude and this view will be built automatically with your data.</p>
+        </div>
+    </div>
+</div>
+<script>
+async function init_nad() {
+    const data = await App.fetchData('nad');
+    if (!data) return;
+    // Claude builds the full view dynamically when data is uploaded
+}
+</script>

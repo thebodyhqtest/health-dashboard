@@ -1,0 +1,99 @@
+<!-- Protocols — Multi-phase treatment plans -->
+<div class="view-protocols">
+    <div class="card">
+        <h1 class="card-title">📝 Protocols</h1>
+        <p class="card-subtitle">Structured treatment protocols with phases, timelines, and exit criteria.</p>
+    </div>
+
+    <div id="protocolsList">
+        <div class="empty-state">
+            <h3>No protocols yet</h3>
+            <p>Tell Claude about any health protocols you're following — gut healing, cardiovascular, hormone optimization, etc. — and it'll structure them with phases, timelines, and exit criteria.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+async function init_protocols() {
+    const data = await App.fetchData('protocols');
+    if (!data || !data.protocols || data.protocols.length === 0) return;
+
+    const container = document.getElementById('protocolsList');
+    container.innerHTML = data.protocols.map(protocol => {
+        const statusColors = { active: 'var(--accent)', completed: 'var(--success)', upcoming: 'var(--info)' };
+        const statusColor = statusColors[protocol.status] || 'var(--text-muted)';
+
+        let html = `<div class="card" style="margin-bottom:16px; border-left:3px solid ${statusColor};">`;
+        html += `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h2 class="card-title">${protocol.name}</h2>
+            <span class="pill" style="border:1px solid ${statusColor}; color:${statusColor};">${protocol.status}</span>
+        </div>`;
+
+        // Problem statement
+        if (protocol.problem) {
+            html += `<div style="font-size:14px; color:var(--text-secondary); margin-bottom:16px; line-height:1.7;">${protocol.problem}</div>`;
+        }
+
+        // Key flags
+        if (protocol.flags && protocol.flags.length > 0) {
+            html += `<div style="margin-bottom:16px;"><h3 style="font-size:14px; color:var(--text-muted); margin-bottom:8px;">Key Flags</h3>`;
+            html += protocol.flags.map(f => `
+                <div class="flag-item" style="margin-bottom:4px;">
+                    <span class="flag-dot ${f.status === 'high' ? 'red' : 'amber'}"></span>
+                    <span><strong>${f.marker}</strong>: ${f.value}${f.range ? ` (range: ${f.range})` : ''}</span>
+                </div>
+            `).join('');
+            html += `</div>`;
+        }
+
+        // Phases
+        if (protocol.phases && protocol.phases.length > 0) {
+            html += `<div style="margin-bottom:16px;"><h3 style="font-size:14px; color:var(--text-muted); margin-bottom:12px;">Phase Timeline</h3>`;
+            const phaseColors = { completed: 'var(--success)', active: 'var(--accent)', upcoming: 'var(--text-muted)' };
+            html += protocol.phases.map(phase => {
+                const pColor = phaseColors[phase.status] || 'var(--text-muted)';
+                const collapsed = phase.status === 'completed' ? 'style="display:none;"' : '';
+                return `
+                    <div class="card" style="margin-bottom:8px; padding:16px; border-left:3px solid ${pColor};">
+                        <div class="expandable-header" onclick="const el=this.nextElementSibling;el.style.display=el.style.display==='none'?'block':'none';">
+                            <div>
+                                <strong>Phase ${phase.number}: ${phase.name}</strong>
+                                <span class="pill" style="font-size:11px; margin-left:8px;">${phase.weeks || ''}</span>
+                                <span class="pill" style="font-size:11px; border:1px solid ${pColor}; color:${pColor};">${phase.status}</span>
+                            </div>
+                            <span style="color:var(--text-muted);">▾</span>
+                        </div>
+                        <div ${collapsed}>
+                            ${phase.goal ? `<div style="margin-top:8px; font-size:13px;"><strong>Goal:</strong> ${phase.goal}</div>` : ''}
+                            ${phase.expected ? `<div style="margin-top:4px; font-size:13px;"><strong>Expected:</strong> ${phase.expected}</div>` : ''}
+                            ${phase.items ? `<div style="margin-top:8px;">${phase.items.map(item => {
+                                const itemColors = { active: 'var(--success)', stopped: 'var(--danger)', planned: 'var(--text-muted)', reduced: 'var(--warning)' };
+                                return `<div class="flag-item" style="margin-bottom:2px;">
+                                    <span class="flag-dot" style="background:${itemColors[item.status] || 'var(--text-muted)'}"></span>
+                                    <span><strong>${item.name}</strong>${item.dose ? ` — ${item.dose}` : ''}${item.target ? ` · Target: ${item.target}` : ''}</span>
+                                </div>`;
+                            }).join('')}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            html += `</div>`;
+        }
+
+        // Exit Criteria
+        if (protocol.exitCriteria && protocol.exitCriteria.length > 0) {
+            html += `<div><h3 style="font-size:14px; color:var(--text-muted); margin-bottom:8px;">Exit Criteria</h3>`;
+            html += protocol.exitCriteria.map(c => `
+                <div class="flag-item" style="margin-bottom:4px;">
+                    <span>${c.met ? '✅' : '⬜'}</span>
+                    <span><strong>${c.test}</strong> — Goal: ${c.goal}${c.meaning ? ` (${c.meaning})` : ''}</span>
+                </div>
+            `).join('');
+            html += `</div>`;
+        }
+
+        html += `</div>`;
+        return html;
+    }).join('');
+}
+</script>

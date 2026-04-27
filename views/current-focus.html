@@ -1,0 +1,103 @@
+<!-- Current Focus — Experiments, upcoming, buy list -->
+<div class="view-focus">
+    <div class="card">
+        <h1 class="card-title">🎯 Current Focus</h1>
+        <p class="card-subtitle">Active experiments, what's coming up, and your buy list.</p>
+    </div>
+
+    <!-- Active Experiments -->
+    <div id="focusExperiments">
+        <div class="card">
+            <h2 class="card-title" style="font-size:16px; margin-bottom:16px;">🧪 Active Experiments</h2>
+            <div id="experimentsContent">
+                <div class="empty-state" style="padding:40px 20px;">
+                    <p>Tell Claude about any experiments you're running. Example: "I'm testing creatine 5g daily for 30 days to see if it improves my workout recovery. Baseline recovery score: 65%"</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Past Experiments (collapsible) -->
+    <div id="focusPast" style="display:none;">
+        <div class="card">
+            <div class="expandable-header" onclick="this.nextElementSibling.classList.toggle('open')">
+                <h2 class="card-title" style="font-size:16px;">📁 Past Experiments</h2>
+                <span style="color:var(--text-muted);">▾</span>
+            </div>
+            <div class="expandable-content" id="pastExperimentsContent"></div>
+        </div>
+    </div>
+
+    <!-- What's Coming Up -->
+    <div id="focusUpcoming" style="display:none;">
+        <div class="card">
+            <h2 class="card-title" style="font-size:16px; margin-bottom:16px;">📅 What's Coming Up</h2>
+            <div id="upcomingContent"></div>
+        </div>
+    </div>
+
+    <!-- Buy / Book List -->
+    <div id="focusBuyList" style="display:none;">
+        <div class="card">
+            <h2 class="card-title" style="font-size:16px; margin-bottom:16px;">🛒 Buy List</h2>
+            <div id="buyListContent"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function init_current_focus() {
+    const data = await App.fetchData('focus');
+    if (!data) return;
+
+    if (data.experiments && data.experiments.length > 0) {
+        document.getElementById('experimentsContent').innerHTML = data.experiments
+            .filter(e => e.status === 'testing' || e.status === 'active')
+            .map(e => `
+                <div class="card" style="border-left: 3px solid var(--accent); margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong>${e.icon || '🧪'} ${e.name}</strong>
+                        <span class="pill">${e.category || ''}</span>
+                    </div>
+                    <div style="margin-top:8px; font-size:13px; color:var(--text-secondary);">
+                        Started: ${e.startDate} · Duration: ${e.duration || 'Ongoing'}
+                    </div>
+                    ${e.hypothesis ? `<div style="margin-top:8px; font-size:13px;"><strong>Hypothesis:</strong> ${e.hypothesis}</div>` : ''}
+                    ${e.metrics ? `<div style="margin-top:8px; font-size:13px;"><strong>Tracking:</strong> ${e.metrics.join(', ')}</div>` : ''}
+                </div>
+            `).join('');
+
+        const past = data.experiments.filter(e => e.status === 'completed');
+        if (past.length > 0) {
+            document.getElementById('focusPast').style.display = 'block';
+            document.getElementById('pastExperimentsContent').innerHTML = past.map(e => `
+                <div class="flag-item" style="margin-bottom:8px;">
+                    <span>${e.icon || '📁'}</span>
+                    <div>
+                        <strong>${e.name}</strong>
+                        <div style="font-size:12px; color:var(--text-muted);">${e.startDate} – ${e.endDate} · Result: ${e.result || 'N/A'}</div>
+                        ${e.learning ? `<div style="font-size:12px; color:var(--text-secondary); margin-top:4px;">${e.learning}</div>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+    }
+
+    if (data.upcoming && data.upcoming.length > 0) {
+        document.getElementById('focusUpcoming').style.display = 'block';
+        document.getElementById('upcomingContent').innerHTML = data.upcoming.map(u => `
+            <div class="flag-item"><span>${u.icon || '📅'}</span><span><strong>${u.name}</strong> — ${u.detail || ''}</span></div>
+        `).join('');
+    }
+
+    if (data.buyList && data.buyList.length > 0) {
+        document.getElementById('focusBuyList').style.display = 'block';
+        document.getElementById('buyListContent').innerHTML = data.buyList.map(b => `
+            <div class="flag-item">
+                <span class="pill">${b.category || 'Item'}</span>
+                <span><strong>${b.name}</strong>${b.detail ? ' — ' + b.detail : ''}</span>
+            </div>
+        `).join('');
+    }
+}
+</script>

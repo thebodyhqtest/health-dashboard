@@ -1,0 +1,20 @@
+<!-- Genetic Test -->
+<div class="view-genetic-test">
+    <div class="card">
+        <h1 class="card-title">Genetic Test</h1>
+        <p class="card-subtitle">View and track your Genetic Test results.</p>
+    </div>
+    <div id="genetic_testContent">
+        <div class="empty-state">
+            <h3>No Genetic Test data yet</h3>
+            <p>Upload your Genetic Test results to Claude and this view will be built automatically with your data.</p>
+        </div>
+    </div>
+</div>
+<script>
+async function init_genetic_test() {
+    const data = await App.fetchData('genetic-test');
+    if (!data) return;
+    // Claude builds the full view dynamically when data is uploaded
+}
+</script>

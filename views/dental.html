@@ -1,0 +1,121 @@
+<!-- Dental — History, Routine, Tests -->
+<div class="view-dental">
+    <div class="card">
+        <h1 class="card-title">🦷 Dental</h1>
+        <p class="card-subtitle">Dental history, care routine, and diagnostics.</p>
+    </div>
+
+    <div class="tab-row" id="dentalTabs">
+        <div class="tab active" data-tab="history">History</div>
+        <div class="tab" data-tab="routine">Routine</div>
+        <div class="tab" data-tab="tests">Tests</div>
+    </div>
+
+    <div id="dentalContent">
+        <div class="empty-state" style="padding:40px 20px;">
+            <h3>No dental history yet</h3>
+            <p>Send Claude your dental history — cleanings, procedures, X-rays, etc.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+async function init_dental() {
+    const tabs = document.querySelectorAll('#dentalTabs .tab');
+    const content = document.getElementById('dentalContent');
+
+    const emptyStates = {
+        history: { title: 'No dental history yet', prompt: 'Send Claude your dental history — cleanings, procedures, X-rays, etc.' },
+        routine: { title: 'No dental care routine yet', prompt: 'Send Claude your dental care routine — toothpaste, mouthwash, flossing, whitening products, oral probiotics — to populate this section.' },
+        tests: { title: 'No dental test data yet', prompt: 'Send Claude your dental diagnostic results — X-rays, panoramic scans, periodontal charts — to populate this section.' }
+    };
+
+    const pills = {
+        history: ['All', 'Cleanings', 'Procedures', 'Diagnostics'],
+        routine: ['Brushing', 'Flossing', 'Mouthwash', 'Whitening', 'Oral Probiotics'],
+        tests: ['X-Ray', 'Panoramic', 'CBCT Scan', 'Periodontal Chart', 'Caries Detection']
+    };
+
+    async function loadTab(tab) {
+        const data = await App.fetchData(`dental/${tab}`);
+        const hasPills = pills[tab];
+        let pillHtml = hasPills ? `<div class="filter-row" style="margin-bottom:16px;">${hasPills.map(p => `<span class="pill">${p}</span>`).join('')}</div>` : '';
+
+        if (!data || (tab === 'history' && (!data.entries || data.entries.length === 0)) ||
+            (tab === 'routine' && !data.brushing && !data.flossing && !data.mouthwash && !data.whitening && !data.supplements) ||
+            (tab === 'tests' && !data.xray && !data.panoramic && !data.periodontal && !data.caries)) {
+            const es = emptyStates[tab];
+            content.innerHTML = pillHtml + `<div class="empty-state" style="padding:40px 20px;"><h3>${es.title}</h3><p>${es.prompt}</p></div>`;
+            return;
+        }
+
+        if (tab === 'history') {
+            const typeColors = { cleaning: 'var(--success)', procedure: '#FB923C', diagnostic: 'var(--info)' };
+            let html = pillHtml;
+            if (data.upcoming) {
+                html += `<div class="card card-amber" style="margin-bottom:16px;"><h2 class="card-title" style="font-size:16px; margin-bottom:12px;">📅 Next Appointment</h2>
+                    <div class="flag-item"><span>${data.upcoming.urgency === 'red' ? '🔴' : data.upcoming.urgency === 'amber' ? '🟡' : '🟢'}</span>
+                    <span><strong>${data.upcoming.type}</strong> — ${data.upcoming.date} (${data.upcoming.daysAway} days away)</span></div>
+                    ${data.upcoming.schedule ? `<div style="font-size:12px; color:var(--text-muted); margin-top:8px; padding-left:32px;">${data.upcoming.schedule}</div>` : ''}
+                </div>`;
+            }
+            html += data.entries.map(e => `
+                <div class="flag-item" style="margin-bottom:4px; border-left:3px solid ${typeColors[e.type] || 'var(--border)'}; padding-left:16px;">
+                    <span style="font-size:12px; color:var(--text-muted); min-width:80px;">${e.date}</span>
+                    <div><strong>${e.name}</strong> <span class="pill" style="font-size:11px;">${e.type || ''}</span>
+                    ${e.detail ? `<div style="font-size:13px; color:var(--text-secondary); margin-top:4px;">${e.detail}</div>` : ''}</div>
+                </div>
+            `).join('');
+            content.innerHTML = html;
+        } else if (tab === 'routine') {
+            let html = pillHtml;
+            const sections = [
+                { key: 'brushing', label: '🪥 Brushing', items: data.brushing },
+                { key: 'flossing', label: '🧵 Flossing', items: data.flossing },
+                { key: 'mouthwash', label: '💧 Mouthwash', items: data.mouthwash },
+                { key: 'whitening', label: '✨ Whitening', items: data.whitening },
+                { key: 'supplements', label: '💊 Oral Probiotics & Supplements', items: data.supplements }
+            ];
+            for (const s of sections) {
+                if (s.items && s.items.length > 0) {
+                    html += `<div class="card" style="margin-bottom:12px;"><h2 class="card-title" style="font-size:16px; margin-bottom:12px;">${s.label}</h2>`;
+                    html += s.items.map(i => `
+                        <div class="flag-item" style="margin-bottom:4px;"><span>•</span>
+                        <div><strong>${i.name}</strong>${i.brand ? ` — ${i.brand}` : ''}${i.frequency ? ` — ${i.frequency}` : ''}
+                        ${i.description ? `<div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${i.description}</div>` : ''}</div></div>
+                    `).join('');
+                    html += `</div>`;
+                }
+            }
+            content.innerHTML = html;
+        } else if (tab === 'tests') {
+            let html = pillHtml;
+            const sections = [
+                { key: 'xray', label: '📷 X-Ray', data: data.xray },
+                { key: 'panoramic', label: '📷 Panoramic / CBCT', data: data.panoramic },
+                { key: 'periodontal', label: '📊 Periodontal Chart', data: data.periodontal },
+                { key: 'caries', label: '🦷 Caries Detection', data: data.caries }
+            ];
+            for (const s of sections) {
+                if (s.data) {
+                    html += `<div class="card" style="margin-bottom:12px;"><h2 class="card-title" style="font-size:16px; margin-bottom:12px;">${s.label}</h2>`;
+                    if (s.data.date) html += `<div style="font-size:13px; color:var(--text-muted); margin-bottom:8px;">Date: ${s.data.date}</div>`;
+                    if (s.data.findings) html += `<p style="font-size:14px; color:var(--text-secondary);">${s.data.findings}</p>`;
+                    html += `</div>`;
+                }
+            }
+            content.innerHTML = html;
+        }
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            loadTab(tab.dataset.tab);
+        });
+    });
+
+    loadTab('history');
+}
+</script>

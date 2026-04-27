@@ -1,0 +1,94 @@
+<!-- Blood Pressure -->
+<div class="view-bp">
+    <div class="card">
+        <h1 class="card-title">🫀 Blood Pressure</h1>
+        <p class="card-subtitle">Track your readings over time.</p>
+    </div>
+
+    <!-- Summary cards (shown when data exists) -->
+    <div id="bpSummary" style="display:none;">
+        <div class="metric-grid" id="bpMetrics"></div>
+    </div>
+
+    <!-- Trend chart placeholder -->
+    <div id="bpChart" style="display:none;">
+        <div class="card">
+            <h2 class="card-title" style="font-size:16px;">Trend</h2>
+            <div id="bpChartArea" style="height:200px; display:flex; align-items:center; justify-content:center; color:var(--text-muted);">Chart renders with data</div>
+        </div>
+    </div>
+
+    <!-- Log table -->
+    <div id="bpLog" style="display:none;">
+        <div class="card">
+            <h2 class="card-title" style="font-size:16px; margin-bottom:16px;">Full Log</h2>
+            <table class="data-table">
+                <thead>
+                    <tr><th>Date</th><th>Systolic</th><th>Diastolic</th><th>Pulse</th><th>Category</th></tr>
+                </thead>
+                <tbody id="bpTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Empty state -->
+    <div class="empty-state" id="bpEmpty">
+        <h3>No blood pressure readings yet</h3>
+        <p>Tell Claude your blood pressure readings. Example: "My BP today is 120/78, pulse 65"</p>
+    </div>
+</div>
+
+<script>
+async function init_blood_pressure() {
+    const data = await App.fetchData('blood-pressure');
+    if (!data || !data.readings || data.readings.length === 0) return;
+
+    document.getElementById('bpEmpty').style.display = 'none';
+
+    const latest = data.readings[data.readings.length - 1];
+    const avg = data.average || {};
+
+    // Summary
+    document.getElementById('bpSummary').style.display = 'block';
+    document.getElementById('bpMetrics').innerHTML = `
+        <div class="metric-card">
+            <div class="metric-label">Latest</div>
+            <div class="metric-value">${latest.systolic}/${latest.diastolic}</div>
+            <div class="metric-sublabel">Pulse: ${latest.pulse || 'N/A'}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Average</div>
+            <div class="metric-value">${avg.systolic || '—'}/${avg.diastolic || '—'}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Category</div>
+            <div class="metric-value" style="font-size:16px;">${getBPCategory(latest.systolic, latest.diastolic)}</div>
+        </div>
+        <div class="metric-card">
+            <div class="metric-label">Trend</div>
+            <div class="metric-value" style="font-size:16px;">${data.trend || '—'}</div>
+        </div>
+    `;
+
+    // Log table
+    document.getElementById('bpLog').style.display = 'block';
+    document.getElementById('bpTableBody').innerHTML = data.readings.reverse().map(r => {
+        const cat = getBPCategory(r.systolic, r.diastolic);
+        const catClass = cat === 'Normal' ? 'pill-green' : cat === 'Elevated' ? 'pill-amber' : 'pill-red';
+        return `<tr>
+            <td>${r.date}</td>
+            <td>${r.systolic}</td>
+            <td>${r.diastolic}</td>
+            <td>${r.pulse || '—'}</td>
+            <td><span class="pill ${catClass}">${cat}</span></td>
+        </tr>`;
+    }).join('');
+}
+
+function getBPCategory(sys, dia) {
+    if (sys < 120 && dia < 80) return 'Normal';
+    if (sys < 130 && dia < 80) return 'Elevated';
+    if (sys < 140 || dia < 90) return 'Stage 1';
+    return 'Stage 2';
+}
+</script>

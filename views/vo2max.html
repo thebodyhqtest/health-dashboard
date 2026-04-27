@@ -1,0 +1,20 @@
+<!-- Vo2max -->
+<div class="view-vo2max">
+    <div class="card">
+        <h1 class="card-title">Vo2max</h1>
+        <p class="card-subtitle">View and track your Vo2max results.</p>
+    </div>
+    <div id="vo2maxContent">
+        <div class="empty-state">
+            <h3>No Vo2max data yet</h3>
+            <p>Upload your Vo2max results to Claude and this view will be built automatically with your data.</p>
+        </div>
+    </div>
+</div>
+<script>
+async function init_vo2max() {
+    const data = await App.fetchData('vo2max');
+    if (!data) return;
+    // Claude builds the full view dynamically when data is uploaded
+}
+</script>

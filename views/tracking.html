@@ -1,0 +1,61 @@
+<!-- Tracking — Daily tracking with filter tabs -->
+<div class="view-tracking">
+    <div class="card">
+        <h1 class="card-title">📊 Tracking</h1>
+        <p class="card-subtitle">Your daily health metrics in one place.</p>
+    </div>
+
+    <div class="tab-row" id="trackingTabs">
+        <div class="tab active" data-tab="plan">📋 Plan</div>
+        <div class="tab" data-tab="exercise">🏋️ Exercise</div>
+        <div class="tab" data-tab="nutrition">🥗 Nutrition</div>
+        <div class="tab" data-tab="sleep">😴 Sleep</div>
+        <div class="tab" data-tab="weight">⚖️ Weight</div>
+        <div class="tab" data-tab="recovery">♨️ Recovery</div>
+        <div class="tab" data-tab="habits">🔄 Habits</div>
+    </div>
+
+    <div id="trackingContent">
+        <!-- Plan tab (default) -->
+        <div class="empty-state" id="planEmpty">
+            <h3>📋 Your Plan</h3>
+            <p>Tell Claude about your exercise plan, sleep routine, nutrition goals, recovery goals, and any other protocols you follow. This is your stated intentions — what you're aiming for.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+function init_tracking() {
+    const tabs = document.querySelectorAll('#trackingTabs .tab');
+    const content = document.getElementById('trackingContent');
+
+    const tabContent = {
+        plan: { title: '📋 Your Plan', prompt: 'Tell Claude about your exercise plan, sleep routine, nutrition goals, recovery goals, and any other protocols you follow.' },
+        exercise: { title: '🏋️ Exercise Log', prompt: 'Tell Claude about your workouts — type, duration, exercises, strain. Example: "I did upper body weights for 45 min today: bench press 4x8, rows 4x10..."' },
+        nutrition: { title: '🥗 Nutrition Log', prompt: 'Tell Claude what you ate today — meals, calories, macros if tracked. Example: "Breakfast: 4 eggs, avocado toast. Lunch: chicken salad..."' },
+        sleep: { title: '😴 Sleep Log', prompt: 'Tell Claude your sleep data — score, duration, deep sleep, REM, HRV, recovery. Paste from your Whoop, Oura, or other tracker.' },
+        weight: { title: '⚖️ Weight Log', prompt: 'Tell Claude your weight and body composition if available — weight, fat mass, muscle mass, bone mass.' },
+        recovery: { title: '♨️ Recovery Log', prompt: 'Tell Claude about your recovery sessions — sauna (duration, temp, rounds), cold plunge (duration, temp), stretching, etc.' },
+        habits: { title: '🔄 Daily Habits', prompt: 'Tell Claude about your daily habits — meditation, journaling, gratitude, breathwork, etc. Include frequency and when you started.' }
+    };
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', async () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const key = tab.dataset.tab;
+            const info = tabContent[key];
+
+            // Try to load data
+            const data = await App.fetchData(`tracking/${key}`);
+            if (data && data.entries && data.entries.length > 0) {
+                // Render data — Claude builds this dynamically per tab
+                content.innerHTML = `<div id="${key}Data"></div>`;
+                if (window[`render_tracking_${key}`]) window[`render_tracking_${key}`](data);
+            } else {
+                content.innerHTML = `<div class="empty-state"><h3>${info.title}</h3><p>${info.prompt}</p></div>`;
+            }
+        });
+    });
+}
+</script>

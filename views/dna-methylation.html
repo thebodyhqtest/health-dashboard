@@ -1,0 +1,20 @@
+<!-- Dna Methylation -->
+<div class="view-dna-methylation">
+    <div class="card">
+        <h1 class="card-title">Dna Methylation</h1>
+        <p class="card-subtitle">View and track your Dna Methylation results.</p>
+    </div>
+    <div id="dna_methylationContent">
+        <div class="empty-state">
+            <h3>No Dna Methylation data yet</h3>
+            <p>Upload your Dna Methylation results to Claude and this view will be built automatically with your data.</p>
+        </div>
+    </div>
+</div>
+<script>
+async function init_dna_methylation() {
+    const data = await App.fetchData('dna-methylation');
+    if (!data) return;
+    // Claude builds the full view dynamically when data is uploaded
+}
+</script>

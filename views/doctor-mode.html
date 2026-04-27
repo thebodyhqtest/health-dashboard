@@ -1,0 +1,136 @@
+<!-- Doctor Mode — Printable one-page summary -->
+<style>
+@media print {
+    #sidebar, .no-print { display: none !important; }
+    #content { margin-left: 0 !important; padding: 16px !important; }
+    .card { break-inside: avoid; border: 1px solid #ddd !important; }
+    body { background: white !important; color: black !important; }
+    .card-title { color: black !important; }
+    .flag-item { border-bottom: 1px solid #eee; }
+}
+</style>
+
+<div class="view-doctor">
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h1 class="card-title">🩺 Doctor Mode</h1>
+                <p class="card-subtitle">One-page summary to take to your doctor. Print-optimized.</p>
+            </div>
+            <button class="no-print" onclick="window.print()" style="background:var(--accent); color:#000; border:none; padding:8px 16px; border-radius:var(--radius-sm); font-weight:600; cursor:pointer;">🖨️ Print</button>
+        </div>
+    </div>
+
+    <!-- Top Flags -->
+    <div id="doctorFlags" style="display:none;">
+        <div class="card card-red">
+            <h2 class="card-title" style="font-size:16px; margin-bottom:12px;">🚨 Top Flags</h2>
+            <div id="doctorFlagsList"></div>
+        </div>
+    </div>
+
+    <!-- Key Discrepancies -->
+    <div id="doctorDiscrepancies" style="display:none;">
+        <div class="card card-amber">
+            <h2 class="card-title" style="font-size:16px; margin-bottom:12px;">🔍 Key Discrepancies to Discuss</h2>
+            <div id="discrepancyList"></div>
+        </div>
+    </div>
+
+    <!-- Current Interventions -->
+    <div id="doctorInterventions" style="display:none;">
+        <div class="card">
+            <h2 class="card-title" style="font-size:16px; margin-bottom:12px;">💊 Current Interventions</h2>
+            <div id="interventionList"></div>
+        </div>
+    </div>
+
+    <!-- Test Inventory -->
+    <div id="doctorInventory" style="display:none;">
+        <div class="card">
+            <h2 class="card-title" style="font-size:16px; margin-bottom:12px;">📋 Test Inventory</h2>
+            <div id="inventoryList"></div>
+        </div>
+    </div>
+
+    <!-- Suggested Next Tests -->
+    <div id="doctorNextTests" style="display:none;">
+        <div class="card card-info">
+            <h2 class="card-title" style="font-size:16px; margin-bottom:12px;">🔬 Suggested Next Tests</h2>
+            <div id="nextTestsList"></div>
+        </div>
+    </div>
+
+    <div id="doctorEmpty">
+        <div class="empty-state">
+            <h3>Upload your test results</h3>
+            <p>Once you have data, this page generates a one-page doctor summary with top flags, questions to ask, and suggested next tests.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+async function init_doctor_mode() {
+    const data = await App.fetchData('doctor-mode');
+    if (!data) return;
+
+    document.getElementById('doctorEmpty').style.display = 'none';
+
+    if (data.flags && data.flags.length > 0) {
+        document.getElementById('doctorFlags').style.display = 'block';
+        document.getElementById('doctorFlagsList').innerHTML = data.flags.map(f => `
+            <div class="flag-item" style="margin-bottom:4px;">
+                <span class="flag-dot ${f.severity === 'high' ? 'red' : 'amber'}"></span>
+                <div style="flex:1;">
+                    <strong>${f.name}</strong> — ${f.value} ${f.unit || ''}
+                    <span class="pill" style="font-size:11px; margin-left:4px;">${f.source}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    if (data.discrepancies && data.discrepancies.length > 0) {
+        document.getElementById('doctorDiscrepancies').style.display = 'block';
+        document.getElementById('discrepancyList').innerHTML = data.discrepancies.map(d => `
+            <div class="card" style="margin-bottom:8px; padding:16px; border-left:3px solid ${d.priority === 'high' ? 'var(--danger)' : 'var(--warning)'};">
+                <strong>${d.title}</strong>
+                <div style="font-size:13px; color:var(--text-secondary); margin-top:6px; line-height:1.6;">${d.detail}</div>
+                <div style="font-size:13px; margin-top:8px; color:var(--accent);"><strong>Ask your doctor:</strong> "${d.question}"</div>
+            </div>
+        `).join('');
+    }
+
+    if (data.interventions && data.interventions.length > 0) {
+        document.getElementById('doctorInterventions').style.display = 'block';
+        document.getElementById('interventionList').innerHTML = data.interventions.map(i => `
+            <div class="flag-item" style="margin-bottom:2px;">
+                <span>💊</span>
+                <span style="flex:1;"><strong>${i.name}</strong></span>
+                <span style="font-size:12px; color:var(--text-muted);">${i.daysActive || ''} days · Since ${i.started || '—'}</span>
+            </div>
+        `).join('');
+    }
+
+    if (data.inventory && data.inventory.length > 0) {
+        document.getElementById('doctorInventory').style.display = 'block';
+        document.getElementById('inventoryList').innerHTML = data.inventory.map(t => `
+            <div class="flag-item" style="margin-bottom:2px;">
+                <span>${t.icon || '📋'}</span>
+                <span style="flex:1;"><strong>${t.name}</strong></span>
+                <span style="font-size:12px; color:var(--text-muted);">${t.dates || ''}</span>
+            </div>
+        `).join('');
+    }
+
+    if (data.nextTests && data.nextTests.length > 0) {
+        document.getElementById('doctorNextTests').style.display = 'block';
+        document.getElementById('nextTestsList').innerHTML = data.nextTests.map(t => `
+            <div class="flag-item" style="margin-bottom:4px;">
+                <span class="pill ${t.urgency === 'high' ? 'pill-red' : 'pill-amber'}" style="font-size:11px;">${t.urgency || 'suggested'}</span>
+                <div><strong>${t.name}</strong>
+                <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">${t.reason}</div></div>
+            </div>
+        `).join('');
+    }
+}
+</script>

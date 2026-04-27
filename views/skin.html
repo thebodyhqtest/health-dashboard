@@ -1,0 +1,130 @@
+<!-- Skin — History, Routine, Tests -->
+<div class="view-skin">
+    <div class="card">
+        <h1 class="card-title">🧴 Skin</h1>
+        <p class="card-subtitle">Treatments, routines, and skin analysis.</p>
+    </div>
+
+    <div class="tab-row" id="skinTabs">
+        <div class="tab active" data-tab="history">History</div>
+        <div class="tab" data-tab="routine">Routine</div>
+        <div class="tab" data-tab="tests">Tests</div>
+    </div>
+
+    <div id="skinContent">
+        <!-- History default -->
+        <div id="skinHistory">
+            <div id="skinUpcoming" style="display:none;"></div>
+            <div id="skinLog">
+                <div class="empty-state" style="padding:40px 20px;">
+                    <h3>No skin treatment history yet</h3>
+                    <p>Send Claude your skin treatment history — facials, injectables, laser sessions, scans, mole checks, etc.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function init_skin() {
+    const tabs = document.querySelectorAll('#skinTabs .tab');
+    const content = document.getElementById('skinContent');
+
+    async function loadTab(tab) {
+        const data = await App.fetchData(`skin/${tab}`);
+
+        if (tab === 'history') {
+            if (data && data.treatments && data.treatments.length > 0) {
+                let html = '';
+                if (data.upcoming && data.upcoming.length > 0) {
+                    html += `<div class="card card-amber" style="margin-bottom:16px;"><h2 class="card-title" style="font-size:16px; margin-bottom:12px;">📅 Upcoming</h2>`;
+                    html += data.upcoming.map(u => `
+                        <div class="flag-item"><span>${u.urgencyColor === 'red' ? '🔴' : u.urgencyColor === 'amber' ? '🟡' : '🟢'}</span>
+                        <span><strong>${u.treatment}</strong> — ${u.area || ''} — Due: ${u.dueDate}</span></div>
+                    `).join('');
+                    html += `</div>`;
+                }
+                html += `<div class="card"><h2 class="card-title" style="font-size:16px; margin-bottom:16px;">Treatment Log</h2>`;
+                html += data.treatments.map(t => `
+                    <div class="flag-item" style="margin-bottom:4px;">
+                        <span style="font-size:12px; color:var(--text-muted); min-width:80px;">${t.date}</span>
+                        <div><strong>${t.name}</strong>${t.area ? ` — ${t.area}` : ''}${t.type ? ` <span class="pill" style="font-size:11px;">${t.type}</span>` : ''}
+                        ${t.detail ? `<div style="font-size:13px; color:var(--text-secondary); margin-top:4px;">${t.detail}</div>` : ''}</div>
+                    </div>
+                `).join('');
+                html += `</div>`;
+                content.innerHTML = html;
+            } else {
+                content.innerHTML = `<div class="empty-state" style="padding:40px 20px;"><h3>No skin treatment history yet</h3><p>Send Claude your skin treatment history — facials, injectables, laser sessions, scans, mole checks, etc.</p></div>`;
+            }
+        } else if (tab === 'routine') {
+            if (data && (data.morning || data.evening || data.shower)) {
+                let html = '';
+                if (data.insights && data.insights.length > 0) {
+                    html += `<div class="card card-info" style="margin-bottom:16px;"><h2 class="card-title" style="font-size:16px; margin-bottom:12px;">💡 What You Might Be Missing</h2>`;
+                    html += data.insights.map(i => `<div class="flag-item"><span>💡</span><span><strong>${i.area}</strong> — ${i.explanation}</span></div>`).join('');
+                    html += `</div>`;
+                }
+                const sections = [
+                    { key: 'morning', label: '☀️ Morning', data: data.morning },
+                    { key: 'evening', label: '🌙 Evening', data: data.evening },
+                    { key: 'shower', label: '🚿 Shower / Body', data: data.shower }
+                ];
+                for (const s of sections) {
+                    if (s.data && s.data.length > 0) {
+                        html += `<div class="card" style="margin-bottom:12px;"><h2 class="card-title" style="font-size:16px; margin-bottom:12px;">${s.label}</h2>`;
+                        html += s.data.map(p => `
+                            <div class="flag-item" style="margin-bottom:4px;"><span>•</span>
+                            <div><strong>${p.name}</strong>${p.brand ? ` — ${p.brand}` : ''}
+                            ${p.actives ? `<div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Key actives: ${p.actives.join(', ')}</div>` : ''}</div></div>
+                        `).join('');
+                        html += `</div>`;
+                    }
+                }
+                const pills = ['Morning', 'Evening', 'Shower', 'SPF', 'Actives'];
+                html = `<div class="filter-row" style="margin-bottom:16px;">${pills.map(p => `<span class="pill">${p}</span>`).join('')}</div>` + html;
+                content.innerHTML = html;
+            } else {
+                content.innerHTML = `<div class="empty-state" style="padding:40px 20px;"><h3>No skincare routine yet</h3><p>Send Claude your skincare routine — morning, evening, and body products — to populate this section.</p></div>`;
+            }
+        } else if (tab === 'tests') {
+            if (data && (data.visia || data.qoves || data.magicMirror)) {
+                let html = '';
+                if (data.visia) {
+                    html += `<div class="card" style="margin-bottom:12px;"><h2 class="card-title" style="font-size:16px; margin-bottom:12px;">VISIA Skin Analysis — ${data.visia.date || ''}</h2>`;
+                    html += `<div class="metric-grid">`;
+                    html += data.visia.scores.map(s => `
+                        <div class="metric-card"><div class="metric-label">${s.name}</div><div class="metric-value">${s.score}</div>
+                        <div class="metric-sublabel">${s.rating || ''}</div></div>
+                    `).join('');
+                    html += `</div></div>`;
+                }
+                if (data.qoves) {
+                    html += `<div class="card" style="margin-bottom:12px;"><h2 class="card-title" style="font-size:16px; margin-bottom:12px;">Skin Analysis</h2>`;
+                    if (data.qoves.skinScores) {
+                        html += `<div class="metric-grid">${data.qoves.skinScores.map(s => `
+                            <div class="metric-card"><div class="metric-label">${s.name}</div><div class="metric-value">${s.score}/100</div></div>
+                        `).join('')}</div>`;
+                    }
+                    html += `</div>`;
+                }
+                const pills = ['VISIA Scan', 'Skin Analysis', 'Dermatologist Report', 'Before/After'];
+                html = `<div class="filter-row" style="margin-bottom:16px;">${pills.map(p => `<span class="pill">${p}</span>`).join('')}</div>` + html;
+                content.innerHTML = html;
+            } else {
+                content.innerHTML = `<div class="empty-state" style="padding:40px 20px;"><h3>No skin test data yet</h3><p>Send Claude your skin analysis results — VISIA scans, dermatologist reports, skin analysis photos — to populate this section.</p></div>`;
+            }
+        }
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            loadTab(tab.dataset.tab);
+        });
+    });
+
+    loadTab('history');
+}
+</script>

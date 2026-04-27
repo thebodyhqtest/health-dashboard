@@ -1,0 +1,107 @@
+<!-- Interventions — Gaps + recommendations -->
+<div class="view-interventions">
+    <div class="card">
+        <h1 class="card-title">🎯 Interventions</h1>
+        <p class="card-subtitle">New interventions to consider based on gaps between your stack and test results.</p>
+    </div>
+
+    <!-- Where You Stand -->
+    <div id="interventionsSummary" style="display:none;">
+        <div class="card">
+            <h2 class="card-title" style="font-size:16px; margin-bottom:16px;">Where You Stand</h2>
+            <div id="dialledIn" style="margin-bottom:16px;"></div>
+            <div id="gaps"></div>
+        </div>
+    </div>
+
+    <!-- Add / Stop toggle -->
+    <div class="tab-row" id="interventionTabs">
+        <div class="tab active" data-tab="add">Add</div>
+        <div class="tab" data-tab="stop">Consider Stopping</div>
+    </div>
+
+    <!-- Intervention pills -->
+    <div class="filter-row" id="interventionPills"></div>
+
+    <!-- Detail panel -->
+    <div id="interventionDetail">
+        <div class="empty-state" style="padding:40px 20px;">
+            <h3>Upload your test results and supplement stack</h3>
+            <p>Once you have test data and a supplement stack, this section will identify gaps and suggest interventions with projected impacts on your markers.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+async function init_interventions() {
+    const data = await App.fetchData('interventions');
+    if (!data) return;
+
+    if (data.summary) {
+        document.getElementById('interventionsSummary').style.display = 'block';
+        if (data.summary.dialledIn) {
+            document.getElementById('dialledIn').innerHTML = `<div class="card card-green" style="padding:16px;">
+                <strong style="color:var(--success);">✅ Dialled In</strong>
+                <div style="margin-top:8px; font-size:13px; color:var(--text-secondary);">${data.summary.dialledIn.join(', ')}</div>
+            </div>`;
+        }
+        if (data.summary.gaps) {
+            document.getElementById('gaps').innerHTML = `<div class="card card-amber" style="padding:16px;">
+                <strong style="color:var(--warning);">⚠️ Gaps Remaining</strong>
+                <div style="margin-top:8px; font-size:13px; color:var(--text-secondary);">${data.summary.gaps.join(', ')}</div>
+            </div>`;
+        }
+    }
+
+    const tabs = document.querySelectorAll('#interventionTabs .tab');
+    const pillsEl = document.getElementById('interventionPills');
+    const detailEl = document.getElementById('interventionDetail');
+
+    function renderTab(tab) {
+        const items = tab === 'add' ? (data.add || []) : (data.stop || []);
+        if (items.length === 0) {
+            pillsEl.innerHTML = '';
+            detailEl.innerHTML = `<div class="empty-state" style="padding:40px;"><p>No ${tab === 'add' ? 'new interventions' : 'stop recommendations'} at this time.</p></div>`;
+            return;
+        }
+        pillsEl.innerHTML = items.map((item, i) => `<span class="pill" data-idx="${i}" style="${tab === 'stop' ? 'border:1px solid var(--danger); color:var(--danger);' : ''}">${item.name}</span>`).join('');
+
+        detailEl.innerHTML = `<div class="empty-state" style="padding:40px;"><p>Select an intervention to see details and projected impacts.</p></div>`;
+
+        pillsEl.querySelectorAll('.pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+                pillsEl.querySelectorAll('.pill').forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                const item = items[pill.dataset.idx];
+                detailEl.innerHTML = `
+                    <div class="card" style="border-left:3px solid ${tab === 'stop' ? 'var(--danger)' : 'var(--info)'};">
+                        <h2 class="card-title" style="font-size:18px; margin-bottom:8px;">${item.name}</h2>
+                        <h3 style="font-size:14px; color:var(--text-secondary); margin-bottom:16px;">${tab === 'stop' ? 'Why consider stopping?' : 'Why this intervention?'}</h3>
+                        <p style="font-size:14px; line-height:1.7; margin-bottom:20px;">${item.reasoning || ''}</p>
+                        ${item.impacts ? `
+                            <h3 style="font-size:14px; color:var(--text-secondary); margin-bottom:12px;">Projected Impacts</h3>
+                            ${item.impacts.map(imp => `
+                                <div class="flag-item" style="margin-bottom:4px;">
+                                    <span class="flag-dot ${imp.direction === 'improve' ? 'green' : imp.direction === 'worsen' ? 'red' : 'amber'}"></span>
+                                    <span style="flex:1;"><strong>${imp.marker}</strong>: ${imp.currentValue || '—'}</span>
+                                    <span style="font-size:13px;">${imp.arrow || ''} ${imp.projected || ''}</span>
+                                </div>
+                            `).join('')}
+                        ` : ''}
+                    </div>
+                `;
+            });
+        });
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            renderTab(tab.dataset.tab);
+        });
+    });
+
+    renderTab('add');
+}
+</script>

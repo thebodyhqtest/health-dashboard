@@ -1,0 +1,24 @@
+<!-- Blood Pathways -->
+<div class="view-blood-pathways">
+    <div class="card"><h1 class="card-title">🔗 Pathways</h1><p class="card-subtitle">How your markers connect through biological pathways.</p></div>
+    <div id="pathwaysContent"><div class="empty-state"><h3>No blood data yet</h3><p>Upload blood test results to see how markers connect through biological pathways.</p></div></div>
+</div>
+<script>
+async function init_blood_pathways() {
+    const data = await App.fetchData('blood-pathways');
+    if (!data || !data.pathways) return;
+    document.getElementById('pathwaysContent').innerHTML = data.pathways.map(p => `
+        <div class="card" style="margin-bottom:12px; border-left:3px solid ${p.status === 'good' ? 'var(--success)' : p.status === 'watch' ? 'var(--warning)' : 'var(--danger)'};">
+            <h2 class="card-title" style="font-size:16px; margin-bottom:8px;">${p.name}</h2>
+            <p style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">${p.description || ''}</p>
+            ${p.markers ? p.markers.map(m => `
+                <div class="flag-item" style="margin-bottom:2px;">
+                    <span class="flag-dot ${m.status === 'good' ? 'green' : m.status === 'watch' ? 'amber' : 'red'}"></span>
+                    <span style="flex:1;"><strong>${m.name}</strong></span>
+                    <span>${m.value || ''} ${m.unit || ''}</span>
+                </div>
+            `).join('') : ''}
+        </div>
+    `).join('');
+}
+</script>

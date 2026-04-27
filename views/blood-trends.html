@@ -1,0 +1,27 @@
+<!-- Blood Trends -->
+<div class="view-blood-trends">
+    <div class="card"><h1 class="card-title">📈 Trends</h1><p class="card-subtitle">How your markers are changing over time.</p></div>
+    <div id="trendsContent"><div class="empty-state"><h3>No blood data yet</h3><p>Upload blood test results to see trends across multiple test dates.</p></div></div>
+</div>
+<script>
+async function init_blood_trends() {
+    const data = await App.fetchData('blood');
+    if (!data || !data.tests || data.tests.length < 2) return;
+    const tests = data.tests.sort((a, b) => new Date(a.date) - new Date(b.date));
+    const latest = tests[tests.length - 1]; const prev = tests[tests.length - 2];
+    let html = '<div class="metric-grid">';
+    for (const m of latest.markers) {
+        const prevM = prev.markers.find(p => p.name === m.name);
+        if (!prevM) continue;
+        const diff = m.value - prevM.value; const pct = ((diff / prevM.value) * 100).toFixed(1);
+        const improved = m.range ? (Math.abs(m.value - (m.range.low + m.range.high)/2) < Math.abs(prevM.value - (m.range.low + m.range.high)/2)) : diff < 0;
+        html += `<div class="metric-card" style="border-left:3px solid ${improved ? 'var(--success)' : 'var(--danger)'};">
+            <div class="metric-label">${m.name}</div>
+            <div class="metric-value" style="font-size:22px;">${App.formatValue(m.value)} <span class="metric-unit">${m.unit || ''}</span></div>
+            <div class="metric-sublabel" style="color:${improved ? 'var(--success)' : 'var(--danger)'};">${diff > 0 ? '↑' : '↓'} ${Math.abs(diff).toFixed(1)} (${pct}%)</div>
+        </div>`;
+    }
+    html += '</div>';
+    document.getElementById('trendsContent').innerHTML = html;
+}
+</script>

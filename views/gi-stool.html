@@ -1,0 +1,20 @@
+<!-- Gi Stool -->
+<div class="view-gi-stool">
+    <div class="card">
+        <h1 class="card-title">Gi Stool</h1>
+        <p class="card-subtitle">View and track your Gi Stool results.</p>
+    </div>
+    <div id="gi_stoolContent">
+        <div class="empty-state">
+            <h3>No Gi Stool data yet</h3>
+            <p>Upload your Gi Stool results to Claude and this view will be built automatically with your data.</p>
+        </div>
+    </div>
+</div>
+<script>
+async function init_gi_stool() {
+    const data = await App.fetchData('gi-stool');
+    if (!data) return;
+    // Claude builds the full view dynamically when data is uploaded
+}
+</script>

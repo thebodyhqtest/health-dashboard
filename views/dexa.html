@@ -1,0 +1,20 @@
+<!-- Dexa -->
+<div class="view-dexa">
+    <div class="card">
+        <h1 class="card-title">Dexa</h1>
+        <p class="card-subtitle">View and track your Dexa results.</p>
+    </div>
+    <div id="dexaContent">
+        <div class="empty-state">
+            <h3>No Dexa data yet</h3>
+            <p>Upload your Dexa results to Claude and this view will be built automatically with your data.</p>
+        </div>
+    </div>
+</div>
+<script>
+async function init_dexa() {
+    const data = await App.fetchData('dexa');
+    if (!data) return;
+    // Claude builds the full view dynamically when data is uploaded
+}
+</script>

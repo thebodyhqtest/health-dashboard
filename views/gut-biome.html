@@ -1,0 +1,20 @@
+<!-- Gut Biome -->
+<div class="view-gut-biome">
+    <div class="card">
+        <h1 class="card-title">Gut Biome</h1>
+        <p class="card-subtitle">View and track your Gut Biome results.</p>
+    </div>
+    <div id="gut_biomeContent">
+        <div class="empty-state">
+            <h3>No Gut Biome data yet</h3>
+            <p>Upload your Gut Biome results to Claude and this view will be built automatically with your data.</p>
+        </div>
+    </div>
+</div>
+<script>
+async function init_gut_biome() {
+    const data = await App.fetchData('gut-biome');
+    if (!data) return;
+    // Claude builds the full view dynamically when data is uploaded
+}
+</script>

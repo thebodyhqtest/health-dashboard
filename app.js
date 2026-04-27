@@ -28,7 +28,7 @@ const App = {
         { id: 'log', label: '📋 Log', always: true },
         { id: 'notes', label: '📝 Notes & Ideas', always: true },
 
-        { section: '🩸 BLOOD REPORT', collapsible: true, parentKey: 'blood' },
+        { section: '🩸 BLOOD REPORT', collapsible: true, greyUntil: 'blood' },
         { id: 'blood-markers', label: '📋 Markers', dataKey: 'blood' },
         { id: 'blood-trends', label: '📈 Trends', dataKey: 'blood' },
         { id: 'blood-categories', label: '📂 Categories', dataKey: 'blood' },
@@ -123,8 +123,13 @@ const App = {
     },
 
     isSectionVisible(item) {
-        if (!item.parentKey) return true;
-        return this.hasData(item.parentKey);
+        // Sections are always visible — greyUntil just greys them out
+        return true;
+    },
+
+    isSectionGreyed(item) {
+        if (!item.greyUntil) return false;
+        return !this.hasData(item.greyUntil);
     },
 
     findNavItem(id) {
@@ -149,8 +154,11 @@ const App = {
                 if (!sectionVisible) continue;
 
                 const collapsed = this.collapsedSections[currentSection] ? 'collapsed' : '';
-                html += `<li class="nav-section ${collapsed}" data-section="${currentSection}">
-                    ${item.collapsible ? '<span class="collapse-arrow">▾</span>' : ''}
+                const greyed = this.isSectionGreyed(item) ? 'greyed' : '';
+                // If greyed, force collapsed and not expandable
+                const forceCollapse = greyed ? 'collapsed' : collapsed;
+                html += `<li class="nav-section ${forceCollapse} ${greyed}" data-section="${currentSection}">
+                    ${item.collapsible && !greyed ? '<span class="collapse-arrow">▾</span>' : ''}
                     ${currentSection}
                 </li>`;
                 continue;

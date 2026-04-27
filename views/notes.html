@@ -1,0 +1,70 @@
+<!-- Notes & Ideas -->
+<div class="view-notes">
+    <div class="card">
+        <h1 class="card-title">📝 Notes & Ideas</h1>
+        <p class="card-subtitle">Capture thoughts, research, family history, ideas — anything health-related.</p>
+    </div>
+
+    <div class="filter-row" id="noteFilters">
+        <span class="pill active" data-filter="all">All</span>
+        <span class="pill" data-filter="family-history">Family History</span>
+        <span class="pill" data-filter="diet">Diet</span>
+        <span class="pill" data-filter="medications">Medications & Supplements</span>
+        <span class="pill" data-filter="testing">Biomarker Testing</span>
+        <span class="pill" data-filter="scans">Scans & Devices</span>
+        <span class="pill" data-filter="ideas">Ideas</span>
+        <span class="pill" data-filter="learning">Learning</span>
+        <span class="pill" data-filter="research">Research</span>
+        <span class="pill" data-filter="lifestyle">Lifestyle & Protocols</span>
+    </div>
+
+    <div id="notesContent">
+        <div class="empty-state">
+            <h3>No notes yet</h3>
+            <p>Tell Claude anything you want to remember. Example: "Note: My dad had high cholesterol at 50. Family history of heart disease on paternal side." Claude will categorize and save it.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+async function init_notes() {
+    const data = await App.fetchData('notes');
+    if (!data || !data.notes || data.notes.length === 0) return;
+
+    const filters = document.querySelectorAll('#noteFilters .pill');
+    const allNotes = data.notes;
+
+    function render(filter) {
+        const filtered = filter === 'all' ? allNotes : allNotes.filter(n => n.category === filter);
+        if (filtered.length === 0) {
+            document.getElementById('notesContent').innerHTML = `<div class="empty-state" style="padding:40px;"><p>No notes in this category yet.</p></div>`;
+            return;
+        }
+        document.getElementById('notesContent').innerHTML = filtered.map(n => `
+            <div class="card" style="margin-bottom:8px; padding:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:start; gap:12px;">
+                    <div style="flex:1;">
+                        <span>${n.icon || '📝'}</span>
+                        <strong style="margin-left:4px;">${n.text}</strong>
+                        ${n.detail ? `<div style="font-size:13px; color:var(--text-secondary); margin-top:6px;">${n.detail}</div>` : ''}
+                        <div style="margin-top:8px;">
+                            ${(n.tags || [n.category]).map(t => `<span class="pill" style="font-size:11px; margin-right:4px;">${t}</span>`).join('')}
+                        </div>
+                    </div>
+                    <span style="font-size:12px; color:var(--text-muted); white-space:nowrap;">${n.date}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    render('all');
+
+    filters.forEach(pill => {
+        pill.addEventListener('click', () => {
+            filters.forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            render(pill.dataset.filter);
+        });
+    });
+}
+</script>

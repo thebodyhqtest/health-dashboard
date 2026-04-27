@@ -1,0 +1,198 @@
+<!-- Blood Markers — Multi-date table with explainers -->
+<div class="view-blood-markers">
+    <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div>
+                <h1 class="card-title">📋 Blood Markers</h1>
+                <p class="card-subtitle">All markers across all test dates.</p>
+            </div>
+            <label style="font-size:13px; color:var(--text-secondary); display:flex; align-items:center; gap:6px;">
+                <input type="checkbox" id="optimalToggle"> Show Optimal Ranges
+            </label>
+        </div>
+    </div>
+
+    <!-- Summary stats -->
+    <div class="metric-grid" id="bloodSummary"></div>
+
+    <!-- Filters -->
+    <div class="filter-row" id="bloodFilters">
+        <span class="pill active" data-filter="all">All</span>
+        <span class="pill" data-filter="oor-latest">Latest OOR</span>
+        <span class="pill" data-filter="oor-all">All OOR</span>
+        <span class="pill" data-filter="improved">Improved</span>
+        <span class="pill" data-filter="new-flags">New Flags</span>
+    </div>
+
+    <!-- Markers table -->
+    <div class="card" style="overflow-x:auto;">
+        <table class="data-table" id="bloodTable">
+            <thead id="bloodTableHead"></thead>
+            <tbody id="bloodTableBody"></tbody>
+        </table>
+    </div>
+
+    <!-- Marker detail drawer -->
+    <div id="markerDetail" style="display:none;"></div>
+</div>
+
+<script>
+async function init_blood_markers() {
+    const data = await App.fetchData('blood');
+    if (!data || !data.tests || data.tests.length === 0) {
+        document.getElementById('bloodSummary').innerHTML = `<div class="empty-state" style="grid-column:1/-1;"><h3>No blood data yet</h3><p>Upload your blood test results to see markers here.</p></div>`;
+        return;
+    }
+
+    const tests = data.tests.sort((a, b) => new Date(a.date) - new Date(b.date));
+    const dates = tests.map(t => t.date);
+    const latest = tests[tests.length - 1];
+    const prev = tests.length > 1 ? tests[tests.length - 2] : null;
+
+    // Build marker map: { markerName: { category, unit, range, optimal, values: { date: value } } }
+    const markerMap = {};
+    for (const test of tests) {
+        for (const m of test.markers) {
+            if (!markerMap[m.name]) {
+                markerMap[m.name] = { category: m.category, unit: m.unit, range: m.range, optimal: m.optimal, values: {} };
+            }
+            markerMap[m.name].values[test.date] = m.value;
+        }
+    }
+
+    // Stats
+    const allMarkers = Object.keys(markerMap);
+    const latestOOR = allMarkers.filter(n => {
+        const v = markerMap[n].values[latest.date];
+        const r = markerMap[n].range;
+        return v !== undefined && r && (v < r.low || v > r.high);
+    });
+    const totalOOR = allMarkers.filter(n => {
+        const r = markerMap[n].range;
+        return Object.values(markerMap[n].values).some(v => v !== undefined && r && (v < r.low || v > r.high));
+    });
+    const improved = prev ? allMarkers.filter(n => {
+        const r = markerMap[n].range;
+        const vPrev = markerMap[n].values[prev.date];
+        const vNow = markerMap[n].values[latest.date];
+        return vPrev !== undefined && vNow !== undefined && r && (vPrev < r.low || vPrev > r.high) && (vNow >= r.low && vNow <= r.high);
+    }) : [];
+    const newFlags = prev ? allMarkers.filter(n => {
+        const r = markerMap[n].range;
+        const vPrev = markerMap[n].values[prev.date];
+        const vNow = markerMap[n].values[latest.date];
+        return vPrev !== undefined && vNow !== undefined && r && (vPrev >= r.low && vPrev <= r.high) && (vNow < r.low || vNow > r.high);
+    }) : [];
+
+    document.getElementById('bloodSummary').innerHTML = `
+        <div class="metric-card"><div class="metric-label">Total Markers</div><div class="metric-value">${allMarkers.length}</div></div>
+        <div class="metric-card"><div class="metric-label">Latest OOR</div><div class="metric-value" style="color:var(--danger)">${latestOOR.length}</div></div>
+        <div class="metric-card"><div class="metric-label">Total OOR</div><div class="metric-value" style="color:var(--warning)">${totalOOR.length}</div></div>
+        <div class="metric-card"><div class="metric-label">Improved</div><div class="metric-value" style="color:var(--success)">${improved.length}</div></div>
+        <div class="metric-card"><div class="metric-label">New Flags</div><div class="metric-value" style="color:var(--danger)">${newFlags.length}</div></div>
+    `;
+
+    // Table header
+    document.getElementById('bloodTableHead').innerHTML = `<tr>
+        <th>Marker</th><th>Category</th><th>Range</th>
+        ${dates.map(d => `<th>${d}</th>`).join('')}
+        ${dates.length > 1 ? '<th>Δ</th>' : ''}
+    </tr>`;
+
+    // Render table
+    const showOptimal = document.getElementById('optimalToggle').checked;
+
+    function renderTable(filter) {
+        let markers = allMarkers;
+        if (filter === 'oor-latest') markers = latestOOR;
+        else if (filter === 'oor-all') markers = totalOOR;
+        else if (filter === 'improved') markers = improved;
+        else if (filter === 'new-flags') markers = newFlags;
+
+        // Sort by category
+        markers.sort((a, b) => (markerMap[a].category || 'ZZZ').localeCompare(markerMap[b].category || 'ZZZ'));
+
+        document.getElementById('bloodTableBody').innerHTML = markers.map(name => {
+            const m = markerMap[name];
+            const r = m.range;
+
+            const cells = dates.map(d => {
+                const v = m.values[d];
+                if (v === undefined) return '<td style="color:var(--text-muted);">—</td>';
+                const oor = r && (v < r.low || v > r.high);
+                return `<td style="color:${oor ? 'var(--danger)' : 'var(--success)'}; font-weight:600;">${App.formatValue(v)}</td>`;
+            }).join('');
+
+            let delta = '';
+            if (dates.length > 1) {
+                const vNow = m.values[dates[dates.length - 1]];
+                const vPrev = m.values[dates[dates.length - 2]];
+                if (vNow !== undefined && vPrev !== undefined) {
+                    const diff = vNow - vPrev;
+                    const arrow = diff > 0 ? '↑' : diff < 0 ? '↓' : '→';
+                    delta = `<td style="font-size:12px;">${arrow} ${Math.abs(diff).toFixed(1)}</td>`;
+                } else {
+                    delta = '<td>—</td>';
+                }
+            }
+
+            const rangeStr = r ? `${r.low}–${r.high}` : '—';
+
+            return `<tr style="cursor:pointer;" onclick="showMarkerDetail('${name.replace(/'/g, "\\'")}')">
+                <td><strong>${name}</strong> <span style="font-size:11px; color:var(--text-muted);">${m.unit || ''}</span></td>
+                <td><span class="pill" style="font-size:11px;">${m.category || 'Other'}</span></td>
+                <td style="font-size:12px; color:var(--text-muted);">${rangeStr}</td>
+                ${cells}${delta}
+            </tr>`;
+        }).join('');
+    }
+
+    renderTable('all');
+
+    // Filter clicks
+    document.querySelectorAll('#bloodFilters .pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            document.querySelectorAll('#bloodFilters .pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            renderTable(pill.dataset.filter);
+        });
+    });
+
+    // Optimal toggle
+    document.getElementById('optimalToggle').addEventListener('change', () => renderTable(
+        document.querySelector('#bloodFilters .pill.active').dataset.filter
+    ));
+
+    // Marker detail
+    window.showMarkerDetail = function(name) {
+        const m = markerMap[name];
+        const detail = document.getElementById('markerDetail');
+        detail.style.display = 'block';
+        detail.innerHTML = `
+            <div class="card" style="margin-top:16px; border-left:3px solid var(--accent);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2 class="card-title">${name}</h2>
+                    <button onclick="document.getElementById('markerDetail').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:18px;">✕</button>
+                </div>
+                <div style="margin-top:12px; font-size:13px; color:var(--text-secondary);">
+                    <strong>Category:</strong> ${m.category || 'Other'} · <strong>Unit:</strong> ${m.unit || '—'} · <strong>Range:</strong> ${m.range ? m.range.low + '–' + m.range.high : '—'}
+                    ${m.optimal ? ` · <strong>Optimal:</strong> ${m.optimal.low}–${m.optimal.high}` : ''}
+                </div>
+                <div style="margin-top:16px;">
+                    <h3 style="font-size:14px; color:var(--text-muted); margin-bottom:8px;">Values Over Time</h3>
+                    ${dates.map(d => {
+                        const v = m.values[d];
+                        if (v === undefined) return '';
+                        const oor = m.range && (v < m.range.low || v > m.range.high);
+                        return `<div class="flag-item" style="margin-bottom:4px;">
+                            <span class="flag-dot ${oor ? 'red' : 'green'}"></span>
+                            <span><strong>${d}</strong>: ${App.formatValue(v)} ${m.unit || ''}</span>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+        detail.scrollIntoView({ behavior: 'smooth' });
+    };
+}
+</script>

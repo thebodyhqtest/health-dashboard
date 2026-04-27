@@ -1,0 +1,20 @@
+<!-- Cac Score -->
+<div class="view-cac-score">
+    <div class="card">
+        <h1 class="card-title">Cac Score</h1>
+        <p class="card-subtitle">View and track your Cac Score results.</p>
+    </div>
+    <div id="cac_scoreContent">
+        <div class="empty-state">
+            <h3>No Cac Score data yet</h3>
+            <p>Upload your Cac Score results to Claude and this view will be built automatically with your data.</p>
+        </div>
+    </div>
+</div>
+<script>
+async function init_cac_score() {
+    const data = await App.fetchData('cac-score');
+    if (!data) return;
+    // Claude builds the full view dynamically when data is uploaded
+}
+</script>

@@ -1,0 +1,121 @@
+<!-- Hair — History, Routine, Tests -->
+<div class="view-hair">
+    <div class="card">
+        <h1 class="card-title">💇 Hair</h1>
+        <p class="card-subtitle">Treatments, care routine, and test results.</p>
+    </div>
+
+    <div class="tab-row" id="hairTabs">
+        <div class="tab active" data-tab="history">History</div>
+        <div class="tab" data-tab="routine">Routine</div>
+        <div class="tab" data-tab="tests">Tests</div>
+    </div>
+
+    <div id="hairContent">
+        <div class="empty-state" style="padding:40px 20px;">
+            <h3>No hair treatment history yet</h3>
+            <p>Send Claude your hair treatment history — consultations, medications, scans, product changes, etc.</p>
+        </div>
+    </div>
+</div>
+
+<script>
+async function init_hair() {
+    const tabs = document.querySelectorAll('#hairTabs .tab');
+    const content = document.getElementById('hairContent');
+
+    const emptyStates = {
+        history: { title: 'No hair treatment history yet', prompt: 'Send Claude your hair treatment history — consultations, medications, scans, product changes, etc.' },
+        routine: { title: 'No hair care routine yet', prompt: 'Send Claude your hair care routine — medications, topicals, devices, shampoo — to populate this section.' },
+        tests: { title: 'No hair test data yet', prompt: 'Send Claude your hair test results — TrichoLAB scans, genetic tests, trichoscopy photos — to populate this section.' }
+    };
+
+    const pills = {
+        routine: ['Medications', 'Topicals', 'Devices', 'Shampoo'],
+        tests: ['TrichoLAB Scan', 'Genetic Test', 'Trichoscopy', 'Blood Markers (Hair-Related)']
+    };
+
+    async function loadTab(tab) {
+        const data = await App.fetchData(`hair/${tab}`);
+        if (!data || (tab === 'history' && (!data.treatments || data.treatments.length === 0)) ||
+            (tab === 'routine' && !data.oral && !data.topicals && !data.devices && !data.wash) ||
+            (tab === 'tests' && !data.tricholab && !data.genetics)) {
+            const es = emptyStates[tab];
+            let html = '';
+            if (pills[tab]) html += `<div class="filter-row" style="margin-bottom:16px;">${pills[tab].map(p => `<span class="pill">${p}</span>`).join('')}</div>`;
+            html += `<div class="empty-state" style="padding:40px 20px;"><h3>${es.title}</h3><p>${es.prompt}</p></div>`;
+            content.innerHTML = html;
+            return;
+        }
+
+        if (tab === 'history') {
+            let html = '';
+            const typeColors = { consultation: 'var(--accent)', medication: '#A78BFA', product: '#FB923C', test: '#22D3EE', scan: '#60A5FA' };
+            html += data.treatments.map(t => `
+                <div class="flag-item" style="margin-bottom:4px; border-left:3px solid ${typeColors[t.type] || 'var(--border)'}; padding-left:16px;">
+                    <span style="font-size:12px; color:var(--text-muted); min-width:80px;">${t.date}</span>
+                    <div><strong>${t.name}</strong> <span class="pill" style="font-size:11px;">${t.type || ''}</span>
+                    ${t.detail ? `<div style="font-size:13px; color:var(--text-secondary); margin-top:4px;">${t.detail}</div>` : ''}</div>
+                </div>
+            `).join('');
+            content.innerHTML = html;
+        } else if (tab === 'routine') {
+            let html = `<div class="filter-row" style="margin-bottom:16px;">${pills.routine.map(p => `<span class="pill">${p}</span>`).join('')}</div>`;
+            const sections = [
+                { key: 'oral', label: '💊 Oral Medications', items: data.oral },
+                { key: 'topicals', label: '🧴 Products', items: data.topicals },
+                { key: 'devices', label: '📡 Devices', items: data.devices },
+                { key: 'wash', label: '🧴 Wash Routine', items: data.wash }
+            ];
+            for (const s of sections) {
+                if (s.items && s.items.length > 0) {
+                    html += `<div class="card" style="margin-bottom:12px;"><h2 class="card-title" style="font-size:16px; margin-bottom:12px;">${s.label}</h2>`;
+                    html += s.items.map(i => `
+                        <div class="flag-item" style="margin-bottom:4px;"><span>•</span>
+                        <div><strong>${i.name}</strong>${i.dose ? ` — ${i.dose}` : ''}${i.timing ? ` — ${i.timing}` : ''}
+                        ${i.description ? `<div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${i.description}</div>` : ''}</div></div>
+                    `).join('');
+                    html += `</div>`;
+                }
+            }
+            content.innerHTML = html;
+        } else if (tab === 'tests') {
+            let html = `<div class="filter-row" style="margin-bottom:16px;">${pills.tests.map(p => `<span class="pill">${p}</span>`).join('')}</div>`;
+            if (data.tricholab) {
+                html += `<div class="card" style="margin-bottom:12px;"><h2 class="card-title" style="font-size:16px; margin-bottom:12px;">TrichoLAB Scan</h2>`;
+                if (data.tricholab.summary) html += `<p style="font-size:14px; color:var(--text-secondary); margin-bottom:16px;">${data.tricholab.summary}</p>`;
+                if (data.tricholab.metrics) {
+                    html += `<div class="metric-grid">${data.tricholab.metrics.map(m => `
+                        <div class="metric-card"><div class="metric-label">${m.name}</div><div class="metric-value">${m.value}</div>
+                        <div class="metric-sublabel">${m.status || ''}</div></div>
+                    `).join('')}</div>`;
+                }
+                html += `</div>`;
+            }
+            if (data.genetics) {
+                html += `<div class="card" style="margin-bottom:12px;"><h2 class="card-title" style="font-size:16px; margin-bottom:12px;">🧬 Genetics</h2>`;
+                if (data.genetics.traits) {
+                    html += data.genetics.traits.map(t => `
+                        <div class="flag-item" style="margin-bottom:4px;">
+                            <span class="flag-dot ${t.risk === 'high' ? 'red' : t.risk === 'moderate' ? 'amber' : 'green'}"></span>
+                            <span><strong>${t.name}</strong> — ${t.note || t.risk}</span>
+                        </div>
+                    `).join('');
+                }
+                html += `</div>`;
+            }
+            content.innerHTML = html;
+        }
+    }
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            loadTab(tab.dataset.tab);
+        });
+    });
+
+    loadTab('history');
+}
+</script>
