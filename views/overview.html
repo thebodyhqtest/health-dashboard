@@ -1,20 +1,70 @@
-<!-- Overview — Landing page -->
+<!-- Overview — Adaptive landing page -->
 <div class="view-overview">
     <div class="card">
-        <div class="card-header">
-            <div>
-                <h1 class="card-title">Welcome to Your Health Dashboard</h1>
-                <p class="card-subtitle">Your personal health data, all in one place.</p>
+        <h1 class="card-title" style="margin-bottom: 4px;">🏠 Overview</h1>
+        <p class="card-subtitle" id="overviewSubtitle">Your health at a glance.</p>
+    </div>
+
+    <!-- Bio Age Hero (if any bio age data exists) -->
+    <div id="bioAgeSection" style="display:none;"></div>
+
+    <!-- Key Vitals Strip -->
+    <div id="vitalsSection" style="display:none;">
+        <h2 style="font-size:16px; margin-bottom:12px; color:var(--text-secondary);">Key Vitals</h2>
+        <div class="metric-grid" id="vitalsGrid"></div>
+    </div>
+
+    <!-- Needs Attention -->
+    <div id="flagsSection" style="display:none;">
+        <div class="card card-red">
+            <div class="card-header">
+                <h2 class="card-title">🚨 Needs Attention</h2>
+                <span id="flagsMore" style="font-size:13px; color:var(--text-muted);"></span>
             </div>
+            <div class="flag-list" id="flagsList"></div>
         </div>
     </div>
 
-    <!-- Quick Stats — populated dynamically when data exists -->
-    <div class="metric-grid" id="overviewMetrics">
-        <!-- Metrics appear here once you add test data -->
+    <!-- Wins -->
+    <div id="winsSection" style="display:none;">
+        <div class="card card-green">
+            <div class="card-header">
+                <h2 class="card-title">🏆 Wins</h2>
+            </div>
+            <div class="flag-list" id="winsList"></div>
+        </div>
     </div>
 
-    <!-- Getting Started -->
+    <!-- Systems Grid -->
+    <div id="systemsSection" style="display:none;">
+        <h2 style="font-size:16px; margin-bottom:12px; color:var(--text-secondary);">📊 Systems</h2>
+        <div class="system-grid" id="systemsGrid"></div>
+    </div>
+
+    <!-- Stack Summary -->
+    <div id="stackSection" style="display:none;"></div>
+
+    <!-- Upcoming -->
+    <div id="upcomingSection" style="display:none;">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">📅 Upcoming</h2>
+            </div>
+            <div id="upcomingList"></div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div id="activitySection" style="display:none;">
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">📋 Recent Activity</h2>
+            </div>
+            <div id="activityList"></div>
+        </div>
+    </div>
+
+    <!-- Getting Started (shown when no data exists) -->
     <div class="card" id="gettingStarted">
         <div class="card-header">
             <h2 class="card-title">🚀 Getting Started</h2>
@@ -26,13 +76,16 @@
             Tell Claude: "Here are my blood test results" and paste or upload your data.</p>
             <br>
             <p><strong style="color: var(--accent);">2. Add other tests</strong><br>
-            VO2 Max, DEXA scan, gut biome — just tell Claude what you have.</p>
+            VO2 Max, DEXA scan, gut biome, DNA methylation — just tell Claude what you have.</p>
             <br>
-            <p><strong style="color: var(--accent);">3. Build your protocol</strong><br>
+            <p><strong style="color: var(--accent);">3. Track daily</strong><br>
+            Blood pressure, sleep, exercise, nutrition — tell Claude and it appears in your Tracking tab.</p>
+            <br>
+            <p><strong style="color: var(--accent);">4. Build your protocol</strong><br>
             Tell Claude about your supplements, routines, and health goals.</p>
             <br>
             <p style="color: var(--text-muted); font-size: 13px;">
-                Every time you update your data, the dashboard reflects it instantly — no redeployment needed.
+                Every time you update data, the dashboard reflects it instantly — no redeployment needed.
             </p>
         </div>
     </div>
@@ -40,21 +93,124 @@
 
 <script>
 async function init_overview() {
-    // Try to load overview data from API
     const data = await App.fetchData('overview');
-    if (!data) return; // No API configured yet or no data — show getting started
 
-    const metricsEl = document.getElementById('overviewMetrics');
-    const gettingStarted = document.getElementById('gettingStarted');
+    // If no API or no data, just show getting started
+    if (!data || !data.hasData) {
+        document.getElementById('gettingStarted').style.display = 'block';
+        return;
+    }
 
-    // If we have data, hide getting started and show metrics
-    if (data.metrics && data.metrics.length > 0) {
-        gettingStarted.style.display = 'none';
-        metricsEl.innerHTML = data.metrics.map(m => `
+    // Hide getting started if we have data
+    document.getElementById('gettingStarted').style.display = 'none';
+
+    // Bio Age
+    if (data.bioAge) {
+        const section = document.getElementById('bioAgeSection');
+        section.style.display = 'block';
+        let html = '<div class="metric-grid">';
+        for (const age of data.bioAge) {
+            html += `<div class="metric-card">
+                <div class="metric-label">${age.source}</div>
+                <div class="metric-value">${App.formatValue(age.value)} <span class="metric-unit">yrs</span></div>
+                <div class="metric-sublabel">${age.gap > 0 ? age.gap + ' yrs older' : Math.abs(age.gap) + ' yrs younger'}</div>
+            </div>`;
+        }
+        html += '</div>';
+        section.innerHTML = html;
+    }
+
+    // Key Vitals
+    if (data.vitals && data.vitals.length > 0) {
+        document.getElementById('vitalsSection').style.display = 'block';
+        document.getElementById('vitalsGrid').innerHTML = data.vitals.map(v => `
             <div class="metric-card">
-                <div class="metric-label">${m.label}</div>
-                <div class="metric-value">${App.formatValue(m.value)} <span class="metric-unit">${m.unit || ''}</span></div>
-                ${m.status ? App.badge(m.status) : ''}
+                <div class="metric-label">${v.label}</div>
+                <div class="metric-value">${App.formatValue(v.value)} <span class="metric-unit">${v.unit || ''}</span></div>
+                ${v.trend ? `<div class="metric-sublabel">${v.trend}</div>` : ''}
+                ${v.status ? App.badge(v.status) : ''}
+            </div>
+        `).join('');
+    }
+
+    // Needs Attention
+    if (data.flags && data.flags.length > 0) {
+        document.getElementById('flagsSection').style.display = 'block';
+        const show = data.flags.slice(0, 8);
+        const remaining = data.flags.length - 8;
+        document.getElementById('flagsList').innerHTML = show.map(f => `
+            <div class="flag-item">
+                <span class="flag-dot ${f.severity || 'red'}"></span>
+                <span><strong>${f.name}</strong> — ${f.detail}</span>
+            </div>
+        `).join('');
+        if (remaining > 0) {
+            document.getElementById('flagsMore').textContent = `+${remaining} more`;
+        }
+    }
+
+    // Wins
+    if (data.wins && data.wins.length > 0) {
+        document.getElementById('winsSection').style.display = 'block';
+        document.getElementById('winsList').innerHTML = data.wins.map(w => `
+            <div class="flag-item">
+                <span class="flag-dot green"></span>
+                <span><strong>${w.name}</strong> — ${w.detail}</span>
+            </div>
+        `).join('');
+    }
+
+    // Systems
+    if (data.systems && data.systems.length > 0) {
+        document.getElementById('systemsSection').style.display = 'block';
+        document.getElementById('systemsGrid').innerHTML = data.systems.map(s => `
+            <div class="system-card ${s.color || ''}" onclick="location.hash='${s.link || ''}'">
+                <div class="system-card-header">
+                    <span class="system-card-title">${s.name}</span>
+                    <span class="system-card-icon">${s.icon || ''}</span>
+                </div>
+                <div class="system-card-metric">${s.headline}</div>
+                <div class="system-card-detail">${s.detail}</div>
+                <div class="system-card-date">Last tested: ${s.date || 'N/A'}</div>
+            </div>
+        `).join('');
+    }
+
+    // Stack Summary
+    if (data.stack) {
+        document.getElementById('stackSection').style.display = 'block';
+        document.getElementById('stackSection').innerHTML = `
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">💊 Stack</h2>
+                </div>
+                <div class="metric-grid">
+                    <div class="metric-card"><div class="metric-label">Active</div><div class="metric-value">${data.stack.active || 0}</div></div>
+                    <div class="metric-card"><div class="metric-label">Stopped</div><div class="metric-value">${data.stack.stopped || 0}</div></div>
+                    <div class="metric-card"><div class="metric-label">Alerts</div><div class="metric-value" style="color:var(--danger)">${data.stack.alerts || 0}</div></div>
+                </div>
+            </div>`;
+    }
+
+    // Upcoming
+    if (data.upcoming && data.upcoming.length > 0) {
+        document.getElementById('upcomingSection').style.display = 'block';
+        document.getElementById('upcomingList').innerHTML = data.upcoming.map(u => `
+            <div class="flag-item">
+                <span>${u.icon || '📅'}</span>
+                <span><strong>${u.name}</strong> — ${u.date}${u.detail ? ' — ' + u.detail : ''}</span>
+            </div>
+        `).join('');
+    }
+
+    // Recent Activity
+    if (data.activity && data.activity.length > 0) {
+        document.getElementById('activitySection').style.display = 'block';
+        document.getElementById('activityList').innerHTML = data.activity.map(a => `
+            <div class="flag-item">
+                <span>${a.icon || '📋'}</span>
+                <span style="flex:1"><strong>${a.label}</strong> ${a.detail || ''}</span>
+                <span style="font-size:12px; color:var(--text-muted)">${a.date}</span>
             </div>
         `).join('');
     }
