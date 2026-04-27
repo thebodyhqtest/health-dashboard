@@ -28,13 +28,11 @@ const App = {
         { id: 'log', label: '📋 Log', always: true },
         { id: 'notes', label: '📝 Notes & Ideas', always: true },
 
-        { section: '🩸 BLOOD REPORT', collapsible: true, greyUntil: 'blood' },
-        { id: 'blood-markers', label: '📋 Markers', dataKey: 'blood' },
-        { id: 'blood-trends', label: '📈 Trends', dataKey: 'blood' },
-        { id: 'blood-categories', label: '📂 Categories', dataKey: 'blood' },
-        { id: 'blood-pathways', label: '🔗 Pathways', dataKey: 'blood' },
-
         { section: '🧪 TESTS', collapsible: true },
+        { id: 'blood-markers', label: '🩸 Blood — Markers', dataKey: 'blood' },
+        { id: 'blood-trends', label: '🩸 Blood — Trends', dataKey: 'blood' },
+        { id: 'blood-categories', label: '🩸 Blood — Categories', dataKey: 'blood' },
+        { id: 'blood-pathways', label: '🩸 Blood — Pathways', dataKey: 'blood' },
         { id: 'gut-biome', label: '🦠 Gut Biome', dataKey: 'gut' },
         { id: 'nad', label: '⚡ NAD', dataKey: 'nad' },
         { id: 'gi-stool', label: '🧪 GI / Stool', dataKey: 'gi' },
