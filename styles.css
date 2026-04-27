@@ -101,6 +101,12 @@ body {
     transform: rotate(-90deg);
 }
 
+.nav-section.greyed {
+    color: var(--text-disabled);
+    cursor: default;
+    opacity: 0.5;
+}
+
 /* Nav items */
 .nav-item {
     transition: height 0.2s, opacity 0.2s;

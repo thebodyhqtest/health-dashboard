@@ -232,11 +232,21 @@ const App = {
         try {
             const response = await fetch(`views/${viewName}.html`);
             if (!response.ok) throw new Error('View not found');
-            container.innerHTML = await response.text();
+            const html = await response.text();
+            container.innerHTML = html;
+
+            // Execute <script> tags (innerHTML doesn't run them)
+            const scripts = container.querySelectorAll('script');
+            for (const oldScript of scripts) {
+                const newScript = document.createElement('script');
+                newScript.textContent = oldScript.textContent;
+                oldScript.parentNode.replaceChild(newScript, oldScript);
+            }
 
             // Call view init if it exists
-            if (window[`init_${viewName.replace(/-/g, '_')}`]) {
-                window[`init_${viewName.replace(/-/g, '_')}`]();
+            const initFn = `init_${viewName.replace(/-/g, '_')}`;
+            if (window[initFn]) {
+                await window[initFn]();
             }
         } catch (err) {
             // No view file yet — show appropriate empty state
