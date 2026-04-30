@@ -1,5 +1,10 @@
 {
   "installCommand": "echo skip",
   "buildCommand": "echo skip",
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "functions": {
+    "api/*.js": {
+      "runtime": "@vercel/node@3"
+    }
+  }
 }
