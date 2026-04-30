@@ -6,7 +6,9 @@
 
 const App = {
     // === CONFIGURATION ===
-    API_BASE: '', // Set to your VPS API URL after setup, e.g. 'http://YOUR_VPS_IP:3000/api'
+    SUPABASE_URL: 'https://yymwcnutoratfkjnwuaj.supabase.co',
+    SUPABASE_KEY: 'sb_publishable_5OfoZBvLds8rp46RgYAoaw_9MMZGToN',
+    supabase: null,
 
     // === DATA CACHE ===
     dataCache: {},
@@ -70,6 +72,7 @@ const App = {
 
     // === INIT ===
     async init() {
+        this.supabase = window.supabase.createClient(this.SUPABASE_URL, this.SUPABASE_KEY);
         await this.checkAvailableData();
         this.buildNav();
         this.bindEvents();
@@ -84,14 +87,17 @@ const App = {
 
     // === CHECK WHAT DATA EXISTS ===
     async checkAvailableData() {
-        if (!this.API_BASE) return;
+        if (!this.supabase) return;
 
         const dataTypes = ['blood', 'gut', 'nad', 'gi', 'cac', 'dna-methylation', 'genetics', 'vo2max', 'dexa', 'inbody', 'supplements', 'tracking', 'protocols'];
 
         const checks = dataTypes.map(async (type) => {
             try {
-                const res = await fetch(`${this.API_BASE}/${type}`, { method: 'HEAD' });
-                if (res.ok) this.availableData[type] = true;
+                const { count, error } = await this.supabase
+                    .from('biomarker_tests')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('test_type', type);
+                if (!error && count > 0) this.availableData[type] = true;
             } catch (e) {
                 // Data doesn't exist yet
             }
@@ -263,22 +269,51 @@ const App = {
     },
 
     // === API HELPERS ===
-    async fetchData(endpoint) {
-        if (!this.API_BASE) {
-            console.warn('API_BASE not configured. Set it in app.js after VPS setup.');
-            return null;
-        }
-
-        if (this.dataCache[endpoint]) return this.dataCache[endpoint];
+    async fetchData(testType) {
+        if (!this.supabase) return null;
+        if (this.dataCache[testType]) return this.dataCache[testType];
 
         try {
-            const res = await fetch(`${this.API_BASE}/${endpoint}`);
-            if (!res.ok) throw new Error(`API error: ${res.status}`);
-            const data = await res.json();
-            this.dataCache[endpoint] = data;
-            return data;
+            const { data: tests, error } = await this.supabase
+                .from('biomarker_tests')
+                .select(`
+                    id,
+                    test_date,
+                    biomarker_results (
+                        marker_name,
+                        value,
+                        unit,
+                        range_low,
+                        range_high,
+                        category
+                    )
+                `)
+                .eq('test_type', testType)
+                .order('test_date', { ascending: false });
+
+            if (error) throw error;
+            if (!tests || tests.length === 0) return null;
+
+            const formatted = {
+                tests: tests.map(test => ({
+                    date: test.test_date,
+                    markers: (test.biomarker_results || []).map(r => ({
+                        name: r.marker_name,
+                        value: r.value,
+                        unit: r.unit,
+                        range: { low: r.range_low, high: r.range_high },
+                        ...(r.optimal_low != null && r.optimal_high != null
+                            ? { optimal: { low: r.optimal_low, high: r.optimal_high } }
+                            : {}),
+                        category: r.category
+                    }))
+                }))
+            };
+
+            this.dataCache[testType] = formatted;
+            return formatted;
         } catch (err) {
-            console.error(`Failed to fetch ${endpoint}:`, err);
+            console.error(`Failed to fetch ${testType} from Supabase:`, err);
             return null;
         }
     },
