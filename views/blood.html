@@ -1,8 +1,15 @@
-<!-- Blood Report — Single view with tabs -->
+<!-- Blood Report -->
 <div class="view-blood">
-    <div class="card">
-        <h1 class="card-title">🩸 Blood Report</h1>
-        <p class="card-subtitle">All your blood work in one place.</p>
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div>
+            <h1 class="card-title">🩸 Blood Report</h1>
+            <p class="card-subtitle">All your blood work in one place.</p>
+        </div>
+        <label class="optimal-toggle" id="optimalToggle" title="Show optimal ranges">
+            <input type="checkbox" id="optimalCheck">
+            <span class="optimal-toggle-track"></span>
+            <span class="optimal-toggle-label">🎯 Optimal Ranges</span>
+        </label>
     </div>
 
     <div class="tab-row" id="bloodTabs">
@@ -15,96 +22,280 @@
     <div id="bloodContent">
         <div class="empty-state">
             <h3>No blood data yet</h3>
-            <p>Upload your blood test results to Claude and your markers, trends, categories, and pathways will appear here.</p>
+            <p>Upload your blood test results to get started.</p>
         </div>
     </div>
 </div>
 
+<!-- Marker detail modal -->
+<div id="markerModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
+    <div id="markerModalInner" style="background:#141414;border:1px solid #1E1E1E;border-radius:16px;padding:28px;max-width:640px;width:90%;max-height:85vh;overflow-y:auto;position:relative;">
+        <button onclick="closeMarkerModal()" style="position:absolute;top:16px;right:16px;background:none;border:none;color:#666;font-size:20px;cursor:pointer;">✕</button>
+        <div id="markerModalContent"></div>
+    </div>
+</div>
+
+<style>
+/* Optimal toggle */
+.optimal-toggle { display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none; }
+.optimal-toggle input { display:none; }
+.optimal-toggle-track { width:36px;height:20px;background:#333;border-radius:10px;position:relative;transition:background .2s; }
+.optimal-toggle input:checked ~ .optimal-toggle-track { background:#C8FF00; }
+.optimal-toggle-track::after { content:'';position:absolute;top:3px;left:3px;width:14px;height:14px;background:#fff;border-radius:50%;transition:transform .2s; }
+.optimal-toggle input:checked ~ .optimal-toggle-track::after { transform:translateX(16px); }
+.optimal-toggle-label { font-size:13px;color:#A0A0A0; }
+
+/* Category filter pills */
+.cat-filter-row { display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px; }
+.cat-pill { padding:5px 14px;border-radius:20px;border:1px solid #333;background:transparent;color:#A0A0A0;font-size:12px;cursor:pointer;transition:all .15s;white-space:nowrap; }
+.cat-pill:hover { border-color:#666;color:#fff; }
+.cat-pill.active { border-color:#C8FF00;color:#C8FF00;background:rgba(200,255,0,0.08); }
+
+/* Status badges */
+.badge-in  { background:rgba(74,222,128,0.15);color:#4ADE80;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:.5px; }
+.badge-out { background:rgba(248,113,113,0.15);color:#F87171;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700;letter-spacing:.5px; }
+
+/* Visual range bar */
+.range-bar-wrap { width:80px;height:8px;background:#222;border-radius:4px;position:relative;display:inline-block; }
+.range-bar-fill { position:absolute;top:0;bottom:0;background:#1a3a1a;border-radius:4px; }
+.range-bar-dot  { position:absolute;top:50%;transform:translate(-50%,-50%);width:10px;height:10px;border-radius:50%;border:2px solid #0A0A0A; }
+
+/* Marker rows */
+.marker-row { cursor:pointer;transition:background .15s; }
+.marker-row:hover { background:rgba(200,255,0,0.04); }
+
+/* Modal history cards */
+.hist-cards { display:flex;gap:12px;flex-wrap:wrap;margin:16px 0; }
+.hist-card  { background:#1E1E1E;border-radius:10px;padding:14px 18px;min-width:120px; }
+.hist-card .hc-date  { font-size:11px;color:#666;margin-bottom:4px; }
+.hist-card .hc-val   { font-size:22px;font-weight:700; }
+.hist-card .hc-unit  { font-size:11px;color:#A0A0A0;margin-left:2px; }
+
+/* Modal range bar (larger) */
+.modal-range-wrap { margin:16px 0;background:#1E1E1E;border-radius:10px;padding:16px; }
+.modal-range-label { font-size:12px;color:#666;margin-bottom:8px; }
+.modal-range-bar   { height:12px;background:#222;border-radius:6px;position:relative;margin:8px 0; }
+.modal-range-fill  { position:absolute;top:0;bottom:0;background:rgba(74,222,128,0.2);border-left:2px solid #4ADE80;border-right:2px solid #4ADE80;border-radius:4px; }
+.modal-range-dot   { position:absolute;top:50%;transform:translate(-50%,-50%);width:16px;height:16px;border-radius:50%;border:3px solid #0A0A0A; }
+.modal-range-ends  { display:flex;justify-content:space-between;font-size:11px;color:#666; }
+</style>
+
 <script>
+let _bloodShowOptimal = false;
+
+function closeMarkerModal() {
+    document.getElementById('markerModal').style.display = 'none';
+}
+document.getElementById('markerModal').addEventListener('click', function(e) {
+    if (e.target === this) closeMarkerModal();
+});
+
+function fmtDate(d) {
+    const [y, m] = d.split('-');
+    const months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    return months[parseInt(m,10)-1] + ' ' + y.slice(2);
+}
+
+function openMarkerModal(name, markerMap, dates) {
+    const m = markerMap[name];
+    const r = (_bloodShowOptimal && m.optimal) ? m.optimal : m.range;
+    const latestDate = dates[dates.length - 1];
+    const latestVal  = m.values[latestDate];
+    const inRange    = r && latestVal !== undefined && latestVal >= r.low && latestVal <= r.high;
+
+    // History cards
+    const histHTML = dates
+        .filter(d => m.values[d] !== undefined)
+        .map(d => {
+            const v = m.values[d];
+            const inR = m.range && v >= m.range.low && v <= m.range.high;
+            return `<div class="hist-card">
+                <div class="hc-date">${fmtDate(d)}</div>
+                <div class="hc-val" style="color:${inR ? '#4ADE80' : '#F87171'};">${App.formatValue(v)}<span class="hc-unit">${m.unit||''}</span></div>
+            </div>`;
+        }).join('');
+
+    // Range bar
+    let rangeBarHTML = '';
+    if (r && latestVal !== undefined) {
+        const span   = r.high - r.low;
+        const buffer = span * 0.3;
+        const barMin = r.low - buffer;
+        const barMax = r.high + buffer;
+        const barSpan = barMax - barMin;
+        const fillLeft  = ((r.low - barMin) / barSpan * 100).toFixed(1);
+        const fillWidth = ((r.high - r.low) / barSpan * 100).toFixed(1);
+        const dotLeft   = Math.min(100, Math.max(0, ((latestVal - barMin) / barSpan * 100))).toFixed(1);
+        const dotColor  = inRange ? '#4ADE80' : '#F87171';
+        rangeBarHTML = `<div class="modal-range-wrap">
+            <div class="modal-range-label">Position in range (${r.low}–${r.high} ${m.unit||''})</div>
+            <div class="modal-range-bar">
+                <div class="modal-range-fill" style="left:${fillLeft}%;width:${fillWidth}%;"></div>
+                <div class="modal-range-dot" style="left:${dotLeft}%;background:${dotColor};"></div>
+            </div>
+            <div class="modal-range-ends"><span>${barMin.toFixed(1)}</span><span>${barMax.toFixed(1)}</span></div>
+        </div>`;
+    }
+
+    document.getElementById('markerModalContent').innerHTML = `
+        <div style="margin-bottom:16px;">
+            <span style="font-size:12px;color:#C8FF00;font-weight:600;">${m.category||'Other'}</span>
+            <h2 style="margin:4px 0 0;font-size:22px;">${name} <span style="font-size:13px;color:#666;font-weight:400;">${m.unit||''}</span></h2>
+        </div>
+        <div class="hist-cards">${histHTML}</div>
+        ${rangeBarHTML}
+        <div style="margin-top:16px;font-size:13px;color:#A0A0A0;line-height:1.6;">
+            <strong style="color:#fff;">Reference range:</strong> ${m.range ? m.range.low+'–'+m.range.high+' '+(m.unit||'') : 'N/A'}
+            ${m.optimal ? `<br><strong style="color:#C8FF00;">Optimal range:</strong> ${m.optimal.low}–${m.optimal.high} ${m.unit||''}` : ''}
+        </div>
+    `;
+    document.getElementById('markerModal').style.display = 'flex';
+}
+
 async function init_blood() {
     const data = await App.fetchData('blood');
     const tabs = document.querySelectorAll('#bloodTabs .tab');
     const content = document.getElementById('bloodContent');
+
+    document.getElementById('optimalCheck').addEventListener('change', function() {
+        _bloodShowOptimal = this.checked;
+        const activeTab = document.querySelector('#bloodTabs .tab.active');
+        if (activeTab && activeTab.dataset.tab === 'markers') renderMarkers(_currentCatFilter || 'All');
+    });
 
     if (!data || !data.tests || data.tests.length === 0) return;
 
     const tests = data.tests.sort((a, b) => new Date(a.date) - new Date(b.date));
     const dates = tests.map(t => t.date);
     const latest = tests[tests.length - 1];
-    const prev = tests.length > 1 ? tests[tests.length - 2] : null;
+    const prev   = tests.length > 1 ? tests[tests.length - 2] : null;
 
     // Build marker map
     const markerMap = {};
     for (const test of tests) {
         for (const m of test.markers) {
-            if (!markerMap[m.name]) markerMap[m.name] = { category: m.category, unit: m.unit, range: m.range, optimal: m.optimal, values: {} };
+            if (!markerMap[m.name]) markerMap[m.name] = { category: m.category, unit: m.unit, range: m.range, optimal: m.optimal || null, values: {} };
             markerMap[m.name].values[test.date] = m.value;
         }
     }
     const allMarkers = Object.keys(markerMap);
 
+    function getRange(name) {
+        const m = markerMap[name];
+        return (_bloodShowOptimal && m.optimal) ? m.optimal : m.range;
+    }
     function isOOR(name, date) {
-        const m = markerMap[name]; const v = m.values[date]; const r = m.range;
+        const m = markerMap[name]; const v = m.values[date]; const r = getRange(name);
         return v !== undefined && r && (v < r.low || v > r.high);
     }
 
     const latestOOR = allMarkers.filter(n => isOOR(n, latest.date));
-    const totalOOR = allMarkers.filter(n => dates.some(d => isOOR(n, d)));
-    const improved = prev ? allMarkers.filter(n => { const m = markerMap[n]; const r = m.range; const vP = m.values[prev.date]; const vN = m.values[latest.date]; return vP !== undefined && vN !== undefined && r && (vP < r.low || vP > r.high) && (vN >= r.low && vN <= r.high); }) : [];
-    const newFlags = prev ? allMarkers.filter(n => { const m = markerMap[n]; const r = m.range; const vP = m.values[prev.date]; const vN = m.values[latest.date]; return vP !== undefined && vN !== undefined && r && (vP >= r.low && vP <= r.high) && (vN < r.low || vN > r.high); }) : [];
+    const improved  = prev ? allMarkers.filter(n => {
+        const m = markerMap[n]; const r = m.range;
+        const vP = m.values[prev.date]; const vN = m.values[latest.date];
+        return vP !== undefined && vN !== undefined && r && (vP < r.low || vP > r.high) && vN >= r.low && vN <= r.high;
+    }) : [];
+    const newFlags  = prev ? allMarkers.filter(n => {
+        const m = markerMap[n]; const r = m.range;
+        const vP = m.values[prev.date]; const vN = m.values[latest.date];
+        return vP !== undefined && vN !== undefined && r && vP >= r.low && vP <= r.high && (vN < r.low || vN > r.high);
+    }) : [];
 
-    function renderMarkers(filter) {
+    const allCats = ['All', ...new Set(allMarkers.map(n => markerMap[n].category || 'Other').filter(Boolean).sort())];
+    let _currentCatFilter = 'All';
+
+    function renderMarkers(catFilter) {
+        _currentCatFilter = catFilter;
         let markers = allMarkers;
-        if (filter === 'oor-latest') markers = latestOOR;
-        else if (filter === 'oor-all') markers = totalOOR;
-        else if (filter === 'improved') markers = improved;
-        else if (filter === 'new-flags') markers = newFlags;
+        if (catFilter !== 'All') markers = allMarkers.filter(n => (markerMap[n].category || 'Other') === catFilter);
         markers.sort((a, b) => (markerMap[a].category || 'ZZZ').localeCompare(markerMap[b].category || 'ZZZ'));
 
-        let html = `
+        const statsHTML = `
             <div class="metric-grid" style="margin-bottom:20px;">
                 <div class="metric-card"><div class="metric-label">Total Markers</div><div class="metric-value">${allMarkers.length}</div></div>
                 <div class="metric-card"><div class="metric-label">Latest OOR</div><div class="metric-value" style="color:var(--danger)">${latestOOR.length}</div></div>
                 <div class="metric-card"><div class="metric-label">Improved</div><div class="metric-value" style="color:var(--success)">${improved.length}</div></div>
                 <div class="metric-card"><div class="metric-label">New Flags</div><div class="metric-value" style="color:var(--danger)">${newFlags.length}</div></div>
-            </div>
-            <div class="filter-row" id="mFilters">
-                <span class="pill ${filter==='all'?'active':''}" data-f="all">All</span>
-                <span class="pill ${filter==='oor-latest'?'active':''}" data-f="oor-latest">Latest OOR</span>
-                <span class="pill ${filter==='oor-all'?'active':''}" data-f="oor-all">All OOR</span>
-                <span class="pill ${filter==='improved'?'active':''}" data-f="improved">Improved</span>
-                <span class="pill ${filter==='new-flags'?'active':''}" data-f="new-flags">New Flags</span>
-            </div>
-            <div class="card" style="overflow-x:auto;">
-            <table class="data-table"><thead><tr><th>Marker</th><th>Category</th><th>Range</th>
-            ${dates.map(d => `<th>${d}</th>`).join('')}
-            ${dates.length > 1 ? '<th>Δ</th>' : ''}
-            </tr></thead><tbody>`;
+            </div>`;
 
-        html += markers.map(name => {
+        const filterHTML = `<div class="cat-filter-row" id="catFilters">
+            ${allCats.map(c => `<span class="cat-pill ${c === catFilter ? 'active' : ''}" data-cat="${c}">${c}</span>`).join('')}
+        </div>`;
+
+        const colHeaders = dates.map(d => `<th>${fmtDate(d)}</th>`).join('');
+        const hasDelta = dates.length > 1;
+
+        const rows = markers.map(name => {
             const m = markerMap[name];
+            const r = getRange(name);
             const cells = dates.map(d => {
                 const v = m.values[d];
                 if (v === undefined) return '<td style="color:var(--text-muted);">—</td>';
-                const oor = m.range && (v < m.range.low || v > m.range.high);
-                return `<td style="color:${oor ? 'var(--danger)' : 'var(--success)'}; font-weight:600;">${App.formatValue(v)}</td>`;
+                const oor = r && (v < r.low || v > r.high);
+                return `<td style="color:${oor ? 'var(--danger)' : 'var(--success)'};font-weight:600;">${App.formatValue(v)}</td>`;
             }).join('');
-            let delta = '';
-            if (dates.length > 1) {
-                const vN = m.values[dates[dates.length-1]]; const vP = m.values[dates[dates.length-2]];
-                if (vN !== undefined && vP !== undefined) { const d = vN-vP; delta = `<td style="font-size:12px;">${d>0?'↑':'↓'} ${Math.abs(d).toFixed(1)}</td>`; }
-                else delta = '<td>—</td>';
-            }
-            return `<tr><td><strong>${name}</strong> <span style="font-size:11px;color:var(--text-muted);">${m.unit||''}</span></td>
-                <td><span class="pill" style="font-size:11px;">${m.category||'Other'}</span></td>
-                <td style="font-size:12px;color:var(--text-muted);">${m.range?m.range.low+'–'+m.range.high:'—'}</td>
-                ${cells}${delta}</tr>`;
-        }).join('');
-        html += '</tbody></table></div>';
-        content.innerHTML = html;
 
-        content.querySelectorAll('#mFilters .pill').forEach(p => {
-            p.addEventListener('click', () => renderMarkers(p.dataset.f));
+            const latestVal = m.values[latest.date];
+            const inRange   = r && latestVal !== undefined && latestVal >= r.low && latestVal <= r.high;
+            const statusBadge = latestVal !== undefined && r
+                ? `<span class="badge-${inRange ? 'in' : 'out'}">${inRange ? 'IN' : 'OUT'}</span>`
+                : '<span style="color:#666;font-size:11px;">—</span>';
+
+            // Visual bar
+            let visualHTML = '<td>—</td>';
+            if (r && latestVal !== undefined) {
+                const span   = r.high - r.low || 1;
+                const buffer = span * 0.3;
+                const barMin = r.low - buffer;
+                const barMax = r.high + buffer;
+                const barSpan = barMax - barMin;
+                const fillLeft  = ((r.low - barMin) / barSpan * 100).toFixed(1);
+                const fillWidth = ((r.high - r.low) / barSpan * 100).toFixed(1);
+                const dotLeft   = Math.min(98, Math.max(2, (latestVal - barMin) / barSpan * 100)).toFixed(1);
+                const dotColor  = inRange ? '#4ADE80' : '#F87171';
+                visualHTML = `<td><div class="range-bar-wrap">
+                    <div class="range-bar-fill" style="left:${fillLeft}%;width:${fillWidth}%;"></div>
+                    <div class="range-bar-dot" style="left:${dotLeft}%;background:${dotColor};"></div>
+                </div></td>`;
+            }
+
+            let delta = '';
+            if (hasDelta) {
+                const vN = m.values[dates[dates.length-1]]; const vP = m.values[dates[dates.length-2]];
+                delta = vN !== undefined && vP !== undefined
+                    ? `<td style="font-size:12px;color:#A0A0A0;">${vN>vP?'↑':'↓'} ${Math.abs(vN-vP).toFixed(1)}</td>`
+                    : '<td>—</td>';
+            }
+
+            return `<tr class="marker-row" data-marker="${name}">
+                <td><strong>${name}</strong> <span style="font-size:11px;color:var(--text-muted);">${m.unit||''}</span></td>
+                <td><span class="cat-pill" style="cursor:default;">${m.category||'Other'}</span></td>
+                ${cells}
+                <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${r ? r.low+'–'+r.high : '—'}</td>
+                <td style="font-weight:700;color:${inRange ? 'var(--success)' : latestVal !== undefined ? 'var(--danger)' : 'var(--text-muted)'};">${latestVal !== undefined ? App.formatValue(latestVal) : '—'}</td>
+                <td>${statusBadge}</td>
+                ${visualHTML}
+                ${delta}
+            </tr>`;
+        }).join('');
+
+        content.innerHTML = `
+            ${statsHTML}
+            ${filterHTML}
+            <div class="card" style="overflow-x:auto;">
+                <table class="data-table"><thead><tr>
+                    <th>Marker</th><th>Category</th>
+                    ${colHeaders}
+                    <th>Range</th><th>Latest</th><th>Status</th><th>Visual</th>
+                    ${hasDelta ? '<th>Δ</th>' : ''}
+                </tr></thead><tbody>${rows}</tbody></table>
+            </div>`;
+
+        content.querySelectorAll('#catFilters .cat-pill').forEach(p => {
+            p.addEventListener('click', () => renderMarkers(p.dataset.cat));
+        });
+        content.querySelectorAll('.marker-row').forEach(row => {
+            row.addEventListener('click', () => openMarkerModal(row.dataset.marker, markerMap, dates));
         });
     }
 
@@ -115,12 +306,12 @@ async function init_blood() {
             const prevM = prev.markers.find(p => p.name === m.name);
             if (!prevM) continue;
             const diff = m.value - prevM.value; const pct = ((diff/prevM.value)*100).toFixed(1);
-            const mid = m.range ? (m.range.low+m.range.high)/2 : null;
-            const imp = mid ? (Math.abs(m.value-mid) < Math.abs(prevM.value-mid)) : diff < 0;
-            html += `<div class="metric-card" style="border-left:3px solid ${imp?'var(--success)':'var(--danger)'};">
+            const mid  = m.range ? (m.range.low + m.range.high) / 2 : null;
+            const imp  = mid ? Math.abs(m.value - mid) < Math.abs(prevM.value - mid) : diff < 0;
+            html += `<div class="metric-card" style="border-left:3px solid ${imp ? 'var(--success)' : 'var(--danger)'};">
                 <div class="metric-label">${m.name}</div>
                 <div class="metric-value" style="font-size:22px;">${App.formatValue(m.value)} <span class="metric-unit">${m.unit||''}</span></div>
-                <div class="metric-sublabel" style="color:${imp?'var(--success)':'var(--danger)'};">${diff>0?'↑':'↓'} ${Math.abs(diff).toFixed(1)} (${pct}%)</div>
+                <div class="metric-sublabel" style="color:${imp ? 'var(--success)' : 'var(--danger)'};">${diff>0?'↑':'↓'} ${Math.abs(diff).toFixed(1)} (${pct}%)</div>
             </div>`;
         }
         html += '</div>';
@@ -132,16 +323,18 @@ async function init_blood() {
         for (const m of latest.markers) { const c = m.category||'Other'; if (!cats[c]) cats[c]=[]; cats[c].push(m); }
         let html = '';
         for (const [cat, markers] of Object.entries(cats).sort()) {
-            const oor = markers.filter(m => m.range && (m.value<m.range.low||m.value>m.range.high));
-            const color = oor.length===0?'green':oor.length<=2?'amber':'red';
-            html += `<div class="card card-${color}" style="margin-bottom:12px;">
-                <div class="card-header"><h2 class="card-title" style="font-size:16px;">${cat}</h2><span class="badge badge-${oor.length===0?'optimal':'warning'}">${markers.length} markers${oor.length>0?', '+oor.length+' OOR':''}</span></div>`;
+            const oor   = markers.filter(m => m.range && (m.value < m.range.low || m.value > m.range.high));
+            html += `<div class="card" style="margin-bottom:12px;">
+                <div class="card-header"><h2 class="card-title" style="font-size:16px;">${cat}</h2>
+                <span class="badge badge-${oor.length === 0 ? 'optimal' : 'warning'}">${markers.length} markers${oor.length > 0 ? ', '+oor.length+' OOR' : ''}</span></div>`;
             html += markers.map(m => {
-                const isO = m.range && (m.value<m.range.low||m.value>m.range.high);
-                return `<div class="flag-item" style="margin-bottom:2px;"><span class="flag-dot ${isO?'red':'green'}"></span>
+                const isO = m.range && (m.value < m.range.low || m.value > m.range.high);
+                return `<div class="flag-item" style="margin-bottom:2px;">
+                    <span class="flag-dot ${isO ? 'red' : 'green'}"></span>
                     <span style="flex:1;"><strong>${m.name}</strong></span>
-                    <span style="font-weight:600;color:${isO?'var(--danger)':'var(--success)'};">${App.formatValue(m.value)} ${m.unit||''}</span>
-                    <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">${m.range?m.range.low+'–'+m.range.high:''}</span></div>`;
+                    <span style="font-weight:600;color:${isO ? 'var(--danger)' : 'var(--success)'};">${App.formatValue(m.value)} ${m.unit||''}</span>
+                    <span style="font-size:11px;color:var(--text-muted);margin-left:8px;">${m.range ? m.range.low+'–'+m.range.high : ''}</span>
+                </div>`;
             }).join('');
             html += '</div>';
         }
@@ -152,7 +345,7 @@ async function init_blood() {
         content.innerHTML = '<div class="empty-state"><h3>Pathways</h3><p>Pathways will be generated when Claude analyzes how your markers connect through biological systems.</p></div>';
     }
 
-    const tabFns = { markers: () => renderMarkers('all'), trends: renderTrends, categories: renderCategories, pathways: renderPathways };
+    const tabFns = { markers: () => renderMarkers(_currentCatFilter), trends: renderTrends, categories: renderCategories, pathways: renderPathways };
 
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
@@ -162,6 +355,6 @@ async function init_blood() {
         });
     });
 
-    renderMarkers('all');
+    renderMarkers('All');
 }
 </script>
