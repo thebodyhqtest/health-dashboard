@@ -72,6 +72,17 @@ const App = {
 
     // === INIT ===
     async init() {
+        try {
+            const setupRes = await fetch('/api/setup');
+            const setup = await setupRes.json();
+            if (!setup.tablesExist || !setup.adminPasswordSet) {
+                window.location.href = '/admin.html';
+                return;
+            }
+        } catch (e) {
+            // If setup check fails, continue loading normally
+        }
+
         this.supabase = window.supabase.createClient(this.SUPABASE_URL, this.SUPABASE_KEY);
         await this.checkAvailableData();
         this.buildNav();
