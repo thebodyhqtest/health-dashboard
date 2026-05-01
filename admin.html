@@ -3,324 +3,432 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin — Credentials</title>
+    <title>Setup — Health Dashboard</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        body { background:#0A0A0A; color:#fff; font-family:'Inter',sans-serif; min-height:100vh; }
+        body { background:#0A0A0A; color:#fff; font-family:'Inter',sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
 
-        .container { max-width:720px; margin:0 auto; padding:40px 20px; }
+        .screen { display:none; width:100%; max-width:520px; }
+        .screen.active { display:block; }
 
-        h1 { font-size:28px; margin-bottom:4px; }
-        .subtitle { color:#666; font-size:14px; margin-bottom:32px; }
+        /* Card */
+        .card { background:#141414; border:1px solid #1E1E1E; border-radius:16px; padding:36px; }
+        .card-icon { font-size:36px; margin-bottom:16px; }
+        .card-title { font-size:22px; font-weight:700; margin-bottom:8px; }
+        .card-subtitle { font-size:14px; color:#666; line-height:1.6; margin-bottom:28px; }
 
-        /* Auth gate */
-        .auth-gate { display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; text-align:center; }
-        .auth-gate h2 { margin-bottom:16px; font-size:20px; }
-        .auth-gate p { color:#666; margin-bottom:24px; font-size:14px; }
+        /* Steps indicator */
+        .steps { display:flex; gap:8px; margin-bottom:32px; }
+        .step-dot { width:8px; height:8px; border-radius:50%; background:#222; transition:background .2s; }
+        .step-dot.active { background:#C8FF00; }
+        .step-dot.done { background:#4ADE80; }
 
         /* Inputs */
-        input[type="text"], input[type="password"], input[type="url"] {
-            width:100%; padding:10px 14px; background:#141414; border:1px solid #2A2A2A;
-            border-radius:8px; color:#fff; font-size:14px; font-family:'Inter',sans-serif;
-            transition: border-color .15s;
-        }
+        label { display:block; font-size:12px; color:#A0A0A0; margin-bottom:6px; font-weight:500; }
+        input { width:100%; padding:12px 14px; background:#0A0A0A; border:1px solid #2A2A2A; border-radius:8px; color:#fff; font-size:14px; font-family:'Inter',sans-serif; transition:border-color .15s; }
         input:focus { outline:none; border-color:#C8FF00; }
-        input::placeholder { color:#444; }
-
-        label { display:block; font-size:12px; color:#A0A0A0; margin-bottom:6px; font-weight:500; letter-spacing:.3px; }
-        .field { margin-bottom:16px; }
-
-        /* Sections */
-        .section { background:#141414; border:1px solid #1E1E1E; border-radius:12px; padding:24px; margin-bottom:16px; }
-        .section-header { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
-        .section-icon { font-size:20px; }
-        .section-title { font-size:16px; font-weight:600; }
-        .section-desc { font-size:12px; color:#666; margin-top:2px; }
+        input::placeholder { color:#333; }
+        .field { margin-bottom:18px; }
+        .field-hint { font-size:11px; color:#444; margin-top:5px; }
+        .field-hint a { color:#C8FF00; text-decoration:none; }
 
         /* Buttons */
-        .btn {
-            padding:10px 24px; border:none; border-radius:8px; font-size:14px;
-            font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s;
-        }
+        .btn { width:100%; padding:13px; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; transition:all .15s; margin-top:8px; }
         .btn-primary { background:#C8FF00; color:#0A0A0A; }
         .btn-primary:hover { background:#D4FF33; }
-        .btn-primary:disabled { background:#333; color:#666; cursor:not-allowed; }
-        .btn-secondary { background:#1E1E1E; color:#fff; border:1px solid #333; }
-        .btn-secondary:hover { border-color:#666; }
-        .btn-danger { background:rgba(248,113,113,0.15); color:#F87171; }
-        .btn-danger:hover { background:rgba(248,113,113,0.25); }
+        .btn-primary:disabled { background:#222; color:#444; cursor:not-allowed; }
+        .btn-secondary { background:transparent; color:#A0A0A0; border:1px solid #2A2A2A; margin-top:10px; }
+        .btn-secondary:hover { border-color:#666; color:#fff; }
 
-        .btn-row { display:flex; gap:12px; justify-content:flex-end; margin-top:24px; }
-
-        /* Status messages */
-        .status { padding:12px 16px; border-radius:8px; font-size:13px; margin-bottom:20px; display:none; }
-        .status.success { display:block; background:rgba(74,222,128,0.1); color:#4ADE80; border:1px solid rgba(74,222,128,0.2); }
+        /* Status */
+        .status { padding:12px 16px; border-radius:8px; font-size:13px; margin-bottom:16px; display:none; }
         .status.error { display:block; background:rgba(248,113,113,0.1); color:#F87171; border:1px solid rgba(248,113,113,0.2); }
-        .status.info { display:block; background:rgba(96,165,250,0.1); color:#60A5FA; border:1px solid rgba(96,165,250,0.2); }
+        .status.success { display:block; background:rgba(74,222,128,0.1); color:#4ADE80; border:1px solid rgba(74,222,128,0.2); }
+        .status.info { display:block; background:rgba(96,165,250,0.08); color:#60A5FA; border:1px solid rgba(96,165,250,0.15); }
 
-        /* Custom credentials */
-        .custom-row { display:flex; gap:8px; margin-bottom:8px; align-items:flex-end; }
-        .custom-row input { flex:1; }
-        .custom-row .btn { padding:10px 12px; flex-shrink:0; }
+        /* SQL box */
+        .sql-box { background:#0A0A0A; border:1px solid #2A2A2A; border-radius:8px; padding:14px; font-family:monospace; font-size:12px; color:#A0A0A0; line-height:1.7; margin-bottom:16px; white-space:pre-wrap; word-break:break-all; }
+        .copy-btn { width:auto; padding:6px 16px; font-size:12px; margin-top:0; display:inline-block; }
 
-        /* Loading */
-        .loading { text-align:center; color:#666; padding:40px; }
+        /* Credential rows in dashboard */
+        .cred-row { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #1E1E1E; }
+        .cred-row:last-child { border-bottom:none; }
+        .cred-label { font-size:13px; color:#A0A0A0; }
+        .cred-value { font-size:13px; color:#4ADE80; font-family:monospace; }
+        .cred-value.empty { color:#333; font-style:italic; font-family:inherit; }
 
-        .field-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
-        @media (max-width:500px) { .field-row { grid-template-columns:1fr; } }
+        /* Custom rows */
+        .custom-row { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:8px; margin-bottom:8px; align-items:end; }
+        .custom-row input { margin:0; }
+        .del-btn { padding:12px 10px; background:rgba(248,113,113,0.1); border:none; border-radius:8px; color:#F87171; cursor:pointer; font-size:14px; }
 
-        .lock-icon { color:#666; font-size:12px; margin-left:6px; }
+        /* Loading spinner */
+        .spinner { width:32px; height:32px; border:3px solid #222; border-top-color:#C8FF00; border-radius:50%; animation:spin .8s linear infinite; margin:0 auto 16px; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .loading-text { text-align:center; color:#666; font-size:14px; }
+
+        /* Section in dashboard */
+        .section { margin-bottom:24px; }
+        .section-title { font-size:11px; color:#666; font-weight:600; letter-spacing:1px; text-transform:uppercase; margin-bottom:12px; }
+
+        /* Top bar in dashboard */
+        .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; }
+        .topbar h2 { font-size:18px; }
+        .topbar button { background:none; border:none; color:#666; cursor:pointer; font-size:13px; font-family:'Inter',sans-serif; }
+        .topbar button:hover { color:#fff; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="authGate" class="auth-gate">
-            <h2>🔐 Admin Access</h2>
-            <p>Enter the admin password to manage credentials.</p>
-            <div style="width:100%;max-width:320px;">
-                <div class="field">
-                    <input type="password" id="adminPassword" placeholder="Admin password" autofocus>
-                </div>
-                <button class="btn btn-primary" style="width:100%;" onclick="authenticate()">Unlock</button>
-            </div>
-            <div id="authStatus" class="status" style="margin-top:16px;"></div>
-        </div>
 
-        <div id="mainContent" style="display:none;">
-            <h1>🔧 Credentials Manager</h1>
-            <p class="subtitle">Store API keys and tokens securely. These are encrypted and only accessible by the system.</p>
-
-            <div id="globalStatus" class="status"></div>
-
-            <!-- GitHub -->
-            <div class="section">
-                <div class="section-header">
-                    <span class="section-icon">🐙</span>
-                    <div>
-                        <div class="section-title">GitHub</div>
-                        <div class="section-desc">Push code, manage repos, create PRs</div>
-                    </div>
-                </div>
-                <div class="field">
-                    <label>Username</label>
-                    <input type="text" id="github_username" placeholder="e.g. thebodyhqtest" data-service="github" data-key="username">
-                </div>
-                <div class="field">
-                    <label>Personal Access Token <span class="lock-icon">🔒</span></label>
-                    <input type="password" id="github_token" placeholder="ghp_..." data-service="github" data-key="token">
-                </div>
-                <div class="field">
-                    <label>Default Repo URL</label>
-                    <input type="url" id="github_repo" placeholder="https://github.com/org/repo" data-service="github" data-key="repo_url">
-                </div>
-            </div>
-
-            <!-- Supabase -->
-            <div class="section">
-                <div class="section-header">
-                    <span class="section-icon">⚡</span>
-                    <div>
-                        <div class="section-title">Supabase</div>
-                        <div class="section-desc">Database access, API queries</div>
-                    </div>
-                </div>
-                <div class="field">
-                    <label>Project URL</label>
-                    <input type="url" id="supabase_url" placeholder="https://xxxxx.supabase.co" data-service="supabase" data-key="url">
-                </div>
-                <div class="field">
-                    <label>Publishable Key (anon)</label>
-                    <input type="text" id="supabase_anon_key" placeholder="sb_publishable_..." data-service="supabase" data-key="anon_key">
-                </div>
-                <div class="field">
-                    <label>Service Role Key <span class="lock-icon">🔒</span></label>
-                    <input type="password" id="supabase_service_key" placeholder="sbp_..." data-service="supabase" data-key="service_role_key">
-                </div>
-            </div>
-
-            <!-- Vercel -->
-            <div class="section">
-                <div class="section-header">
-                    <span class="section-icon">▲</span>
-                    <div>
-                        <div class="section-title">Vercel</div>
-                        <div class="section-desc">Deploy, manage domains, environment variables</div>
-                    </div>
-                </div>
-                <div class="field">
-                    <label>API Token <span class="lock-icon">🔒</span></label>
-                    <input type="password" id="vercel_token" placeholder="Your Vercel API token" data-service="vercel" data-key="token">
-                </div>
-                <div class="field-row">
-                    <div class="field">
-                        <label>Project ID</label>
-                        <input type="text" id="vercel_project" placeholder="prj_..." data-service="vercel" data-key="project_id">
-                    </div>
-                    <div class="field">
-                        <label>Team ID (optional)</label>
-                        <input type="text" id="vercel_team" placeholder="team_..." data-service="vercel" data-key="team_id">
-                    </div>
-                </div>
-            </div>
-
-            <!-- Custom -->
-            <div class="section">
-                <div class="section-header">
-                    <span class="section-icon">🔑</span>
-                    <div>
-                        <div class="section-title">Custom Credentials</div>
-                        <div class="section-desc">Add any other API keys, tokens, or secrets</div>
-                    </div>
-                </div>
-                <div id="customFields"></div>
-                <button class="btn btn-secondary" onclick="addCustomField()" style="margin-top:8px;">+ Add credential</button>
-            </div>
-
-            <div class="btn-row">
-                <button class="btn btn-secondary" onclick="loadCredentials()">Reload</button>
-                <button class="btn btn-primary" id="saveBtn" onclick="saveAll()">Save All Credentials</button>
-            </div>
-        </div>
+<!-- Loading -->
+<div class="screen active" id="screen-loading">
+    <div style="text-align:center;">
+        <div class="spinner"></div>
+        <div class="loading-text">Checking your setup…</div>
     </div>
+</div>
 
-    <script>
-        let adminPwd = '';
+<!-- Step 1: Create database tables -->
+<div class="screen" id="screen-db">
+    <div class="card">
+        <div class="steps">
+            <div class="step-dot active"></div>
+            <div class="step-dot"></div>
+            <div class="step-dot"></div>
+        </div>
+        <div class="card-icon">🗄️</div>
+        <div class="card-title">Set up your database</div>
+        <div class="card-subtitle">You need to create one table in Supabase. Copy the SQL below, run it in your Supabase project, then come back and click Continue.</div>
+        <div id="status-db" class="status"></div>
+        <div class="sql-box" id="sqlBox"></div>
+        <div style="display:flex;gap:8px;margin-bottom:20px;">
+            <button class="btn btn-secondary copy-btn" onclick="copySql()">Copy SQL</button>
+            <a id="sqlEditorLink" href="#" target="_blank" style="flex:1;">
+                <button class="btn btn-primary" style="margin:0;">Open Supabase SQL Editor →</button>
+            </a>
+        </div>
+        <button class="btn btn-secondary" onclick="checkDb()">I've run it — Continue</button>
+    </div>
+</div>
 
-        function showStatus(id, message, type) {
-            const el = document.getElementById(id);
-            el.className = `status ${type}`;
-            el.textContent = message;
-            if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 4000);
-        }
+<!-- Step 2: Set admin password -->
+<div class="screen" id="screen-password">
+    <div class="card">
+        <div class="steps">
+            <div class="step-dot done"></div>
+            <div class="step-dot active"></div>
+            <div class="step-dot"></div>
+        </div>
+        <div class="card-icon">🔐</div>
+        <div class="card-title">Choose a password</div>
+        <div class="card-subtitle">This is the password you'll use to access this page. Pick something you'll remember.</div>
+        <div id="status-password" class="status"></div>
+        <div class="field">
+            <label>Admin password</label>
+            <input type="password" id="pw1" placeholder="Choose a password (min 6 characters)" autofocus>
+        </div>
+        <div class="field">
+            <label>Confirm password</label>
+            <input type="password" id="pw2" placeholder="Type it again">
+        </div>
+        <button class="btn btn-primary" onclick="setPassword()">Set Password →</button>
+    </div>
+</div>
 
-        async function authenticate() {
-            adminPwd = document.getElementById('adminPassword').value;
-            if (!adminPwd) return;
+<!-- Step 3: Add GitHub token -->
+<div class="screen" id="screen-github">
+    <div class="card">
+        <div class="steps">
+            <div class="step-dot done"></div>
+            <div class="step-dot done"></div>
+            <div class="step-dot active"></div>
+        </div>
+        <div class="card-icon">🐙</div>
+        <div class="card-title">Connect GitHub</div>
+        <div class="card-subtitle">This lets the system push code and manage your repo automatically.</div>
+        <div id="status-github" class="status"></div>
+        <div class="field">
+            <label>GitHub username</label>
+            <input type="text" id="gh-username" placeholder="e.g. thebodyhqtest">
+        </div>
+        <div class="field">
+            <label>Personal access token</label>
+            <input type="password" id="gh-token" placeholder="ghp_...">
+            <div class="field-hint">
+                Get your token at <a href="https://github.com/settings/tokens/new?scopes=repo&description=Health+Dashboard" target="_blank">github.com/settings/tokens →</a><br>
+                Select scope: <strong>repo</strong> (full control)
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="saveGithub()">Save & Finish Setup →</button>
+        <button class="btn btn-secondary" onclick="showDashboard()">Skip for now</button>
+    </div>
+</div>
 
-            try {
-                const res = await fetch('/api/credentials', {
-                    headers: { 'x-admin-password': adminPwd }
-                });
-                if (!res.ok) {
-                    showStatus('authStatus', 'Invalid password. Try again.', 'error');
-                    return;
-                }
-                document.getElementById('authGate').style.display = 'none';
-                document.getElementById('mainContent').style.display = 'block';
-                loadCredentials();
-            } catch (e) {
-                showStatus('authStatus', 'Could not connect to server.', 'error');
+<!-- Login -->
+<div class="screen" id="screen-login">
+    <div class="card">
+        <div class="card-icon">🧬</div>
+        <div class="card-title">Health Dashboard</div>
+        <div class="card-subtitle">Enter your admin password to manage credentials.</div>
+        <div id="status-login" class="status"></div>
+        <div class="field">
+            <input type="password" id="login-pw" placeholder="Admin password" autofocus>
+        </div>
+        <button class="btn btn-primary" onclick="login()">Unlock →</button>
+    </div>
+</div>
+
+<!-- Dashboard -->
+<div class="screen" id="screen-dashboard">
+    <div class="card">
+        <div class="topbar">
+            <h2>🔑 Credentials</h2>
+            <button onclick="logout()">Lock</button>
+        </div>
+        <div id="status-dashboard" class="status"></div>
+
+        <div class="section">
+            <div class="section-title">GitHub</div>
+            <div class="field">
+                <label>Username</label>
+                <input type="text" id="d-gh-username" placeholder="e.g. thebodyhqtest" data-service="github" data-key="username">
+            </div>
+            <div class="field">
+                <label>Personal access token</label>
+                <input type="password" id="d-gh-token" placeholder="ghp_..." data-service="github" data-key="token">
+                <div class="field-hint"><a href="https://github.com/settings/tokens/new?scopes=repo&description=Health+Dashboard" target="_blank">Get token →</a></div>
+            </div>
+            <div class="field">
+                <label>Default repo URL</label>
+                <input type="text" id="d-gh-repo" placeholder="https://github.com/org/repo" data-service="github" data-key="repo_url">
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Supabase</div>
+            <div class="field">
+                <label>Project URL</label>
+                <input type="text" id="d-sb-url" placeholder="https://xxxxx.supabase.co" data-service="supabase" data-key="url">
+            </div>
+            <div class="field">
+                <label>Anon key</label>
+                <input type="text" id="d-sb-anon" placeholder="sb_publishable_..." data-service="supabase" data-key="anon_key">
+            </div>
+            <div class="field">
+                <label>Service role key</label>
+                <input type="password" id="d-sb-service" placeholder="sbp_..." data-service="supabase" data-key="service_role_key">
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Vercel</div>
+            <div class="field">
+                <label>API token</label>
+                <input type="password" id="d-v-token" placeholder="Your Vercel API token" data-service="vercel" data-key="token">
+                <div class="field-hint"><a href="https://vercel.com/account/tokens" target="_blank">Get token →</a></div>
+            </div>
+            <div class="field">
+                <label>Project ID</label>
+                <input type="text" id="d-v-project" placeholder="prj_..." data-service="vercel" data-key="project_id">
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Custom</div>
+            <div id="customFields"></div>
+            <button class="btn btn-secondary" onclick="addCustom()" style="margin-top:4px;width:auto;padding:8px 16px;font-size:13px;">+ Add</button>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveAll()">Save All</button>
+    </div>
+</div>
+
+<script>
+    let adminPassword = '';
+    let setupData = {};
+
+    async function init() {
+        try {
+            const res = await fetch('/api/setup');
+            const data = await res.json();
+            setupData = data;
+
+            if (!data.tablesExist) {
+                document.getElementById('sqlBox').textContent = data.setupSql;
+                document.getElementById('sqlEditorLink').href = data.sqlEditorUrl;
+                show('screen-db');
+            } else if (!data.adminPasswordSet) {
+                show('screen-password');
+            } else {
+                show('screen-login');
             }
+        } catch (e) {
+            document.querySelector('.loading-text').textContent = 'Could not connect to server. Check your Vercel environment variables.';
+            document.querySelector('.spinner').style.display = 'none';
         }
+    }
 
-        document.getElementById('adminPassword').addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') authenticate();
+    function show(screenId) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(screenId).classList.add('active');
+    }
+
+    function showStatus(id, msg, type) {
+        const el = document.getElementById(id);
+        el.className = `status ${type}`;
+        el.textContent = msg;
+        if (type === 'success') setTimeout(() => el.style.display = 'none', 4000);
+    }
+
+    function copySql() {
+        navigator.clipboard.writeText(setupData.setupSql);
+        showStatus('status-db', 'SQL copied to clipboard.', 'success');
+    }
+
+    async function checkDb() {
+        showStatus('status-db', 'Checking…', 'info');
+        const res = await fetch('/api/setup');
+        const data = await res.json();
+        if (data.tablesExist) {
+            show('screen-password');
+        } else {
+            showStatus('status-db', 'Table not found yet. Make sure you ran the SQL and clicked Run in Supabase.', 'error');
+        }
+    }
+
+    async function setPassword() {
+        const pw1 = document.getElementById('pw1').value;
+        const pw2 = document.getElementById('pw2').value;
+        if (pw1.length < 6) return showStatus('status-password', 'Password must be at least 6 characters.', 'error');
+        if (pw1 !== pw2) return showStatus('status-password', 'Passwords don\'t match.', 'error');
+
+        const res = await fetch('/api/setup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminPassword: pw1 })
+        });
+        const data = await res.json();
+        if (!res.ok) return showStatus('status-password', data.error, 'error');
+
+        adminPassword = pw1;
+        show('screen-github');
+    }
+
+    async function saveGithub() {
+        const username = document.getElementById('gh-username').value.trim();
+        const token = document.getElementById('gh-token').value.trim();
+        if (!username || !token) return showStatus('status-github', 'Please fill in both fields.', 'error');
+
+        const res = await fetch('/api/credentials', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+            body: JSON.stringify({ credentials: [
+                { service_name: 'github', key_name: 'username', key_value: username },
+                { service_name: 'github', key_name: 'token', key_value: token }
+            ]})
+        });
+        const data = await res.json();
+        if (!res.ok) return showStatus('status-github', data.error, 'error');
+
+        showDashboard();
+    }
+
+    async function showDashboard() {
+        show('screen-dashboard');
+        await loadCredentials();
+    }
+
+    async function login() {
+        const pw = document.getElementById('login-pw').value;
+        if (!pw) return;
+
+        const res = await fetch('/api/credentials', {
+            headers: { 'x-admin-password': pw }
+        });
+        if (!res.ok) return showStatus('status-login', 'Wrong password.', 'error');
+
+        adminPassword = pw;
+        const data = await res.json();
+        populateFields(data);
+        show('screen-dashboard');
+    }
+
+    document.getElementById('login-pw').addEventListener('keydown', e => {
+        if (e.key === 'Enter') login();
+    });
+
+    function logout() {
+        adminPassword = '';
+        document.getElementById('login-pw').value = '';
+        show('screen-login');
+    }
+
+    async function loadCredentials() {
+        const res = await fetch('/api/credentials', { headers: { 'x-admin-password': adminPassword } });
+        if (!res.ok) return;
+        const data = await res.json();
+        populateFields(data);
+    }
+
+    function populateFields(data) {
+        document.querySelectorAll('[data-service]').forEach(input => {
+            const val = data[input.dataset.service]?.[input.dataset.key];
+            if (val) input.value = val;
         });
 
-        async function loadCredentials() {
-            try {
-                const res = await fetch('/api/credentials', {
-                    headers: { 'x-admin-password': adminPwd }
-                });
-                if (!res.ok) return;
-                const data = await res.json();
-
-                document.querySelectorAll('[data-service]').forEach(input => {
-                    const service = input.dataset.service;
-                    const key = input.dataset.key;
-                    if (data[service] && data[service][key]) {
-                        input.value = data[service][key];
-                    }
-                });
-
-                // Load custom credentials
-                const customContainer = document.getElementById('customFields');
-                customContainer.innerHTML = '';
-                const knownServices = ['github', 'supabase', 'vercel'];
-                for (const [service, keys] of Object.entries(data)) {
-                    if (knownServices.includes(service)) continue;
-                    for (const [key, value] of Object.entries(keys)) {
-                        addCustomField(service, key, value);
-                    }
-                }
-
-                showStatus('globalStatus', 'Credentials loaded.', 'info');
-            } catch (e) {
-                showStatus('globalStatus', 'Failed to load credentials.', 'error');
+        const customContainer = document.getElementById('customFields');
+        customContainer.innerHTML = '';
+        const known = ['github', 'supabase', 'vercel', 'system'];
+        for (const [service, keys] of Object.entries(data)) {
+            if (known.includes(service)) continue;
+            for (const [key, value] of Object.entries(keys)) {
+                addCustom(service, key, value);
             }
         }
+    }
 
-        function addCustomField(service, key, value) {
-            const container = document.getElementById('customFields');
-            const row = document.createElement('div');
-            row.className = 'custom-row';
-            row.innerHTML = `
-                <input type="text" placeholder="Service (e.g. openai)" class="custom-service" value="${service || ''}">
-                <input type="text" placeholder="Key name (e.g. api_key)" class="custom-key" value="${key || ''}">
-                <input type="password" placeholder="Value" class="custom-value" value="${value || ''}">
-                <button class="btn btn-danger" onclick="this.parentElement.remove()">✕</button>
-            `;
-            container.appendChild(row);
-        }
+    function addCustom(service = '', key = '', value = '') {
+        const row = document.createElement('div');
+        row.className = 'custom-row';
+        row.innerHTML = `
+            <div class="field" style="margin:0;"><label>Service</label><input type="text" placeholder="e.g. openai" class="c-service" value="${service}"></div>
+            <div class="field" style="margin:0;"><label>Key name</label><input type="text" placeholder="e.g. api_key" class="c-key" value="${key}"></div>
+            <div class="field" style="margin:0;"><label>Value</label><input type="password" placeholder="Value" class="c-value" value="${value}"></div>
+            <div style="padding-top:20px;"><button class="del-btn" onclick="this.closest('.custom-row').remove()">✕</button></div>
+        `;
+        document.getElementById('customFields').appendChild(row);
+    }
 
-        async function saveAll() {
-            const btn = document.getElementById('saveBtn');
-            btn.disabled = true;
-            btn.textContent = 'Saving...';
+    async function saveAll() {
+        const credentials = [];
 
-            const credentials = [];
-
-            document.querySelectorAll('[data-service]').forEach(input => {
-                if (input.value.trim()) {
-                    credentials.push({
-                        service_name: input.dataset.service,
-                        key_name: input.dataset.key,
-                        key_value: input.value.trim()
-                    });
-                }
-            });
-
-            document.querySelectorAll('.custom-row').forEach(row => {
-                const service = row.querySelector('.custom-service').value.trim();
-                const key = row.querySelector('.custom-key').value.trim();
-                const value = row.querySelector('.custom-value').value.trim();
-                if (service && key && value) {
-                    credentials.push({ service_name: service, key_name: key, key_value: value });
-                }
-            });
-
-            if (credentials.length === 0) {
-                showStatus('globalStatus', 'Nothing to save — fill in at least one field.', 'error');
-                btn.disabled = false;
-                btn.textContent = 'Save All Credentials';
-                return;
+        document.querySelectorAll('[data-service]').forEach(input => {
+            if (input.value.trim()) {
+                credentials.push({ service_name: input.dataset.service, key_name: input.dataset.key, key_value: input.value.trim() });
             }
+        });
 
-            try {
-                const res = await fetch('/api/credentials', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'x-admin-password': adminPwd
-                    },
-                    body: JSON.stringify({ credentials })
-                });
+        document.querySelectorAll('.custom-row').forEach(row => {
+            const s = row.querySelector('.c-service').value.trim();
+            const k = row.querySelector('.c-key').value.trim();
+            const v = row.querySelector('.c-value').value.trim();
+            if (s && k && v) credentials.push({ service_name: s, key_name: k, key_value: v });
+        });
 
-                const result = await res.json();
-                if (res.ok) {
-                    showStatus('globalStatus', `Saved ${result.saved} credential(s) successfully.`, 'success');
-                } else {
-                    showStatus('globalStatus', result.error || 'Failed to save.', 'error');
-                }
-            } catch (e) {
-                showStatus('globalStatus', 'Network error. Could not save.', 'error');
-            }
+        if (!credentials.length) return showStatus('status-dashboard', 'Nothing to save.', 'error');
 
-            btn.disabled = false;
-            btn.textContent = 'Save All Credentials';
-        }
-    </script>
+        const res = await fetch('/api/credentials', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+            body: JSON.stringify({ credentials })
+        });
+        const data = await res.json();
+        showStatus('status-dashboard', res.ok ? `Saved ${data.saved} credential(s).` : data.error, res.ok ? 'success' : 'error');
+    }
+
+    init();
+</script>
 </body>
 </html>
