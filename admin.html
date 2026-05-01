@@ -247,17 +247,41 @@
 
 <script>
     let adminPassword = '';
-    let setupData = {};
+
+    const SETUP_SQL = `CREATE TABLE IF NOT EXISTS credentials (
+    id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+    service_name text NOT NULL,
+    key_name text NOT NULL,
+    key_value text NOT NULL,
+    created_at timestamptz DEFAULT now(),
+    updated_at timestamptz DEFAULT now(),
+    UNIQUE(service_name, key_name)
+);
+ALTER TABLE credentials ENABLE ROW LEVEL SECURITY;`;
 
     async function init() {
+        // Always show the SQL immediately — don't wait for API
+        document.getElementById('sqlBox').textContent = SETUP_SQL;
+
         try {
             const res = await fetch('/api/setup');
             const data = await res.json();
-            setupData = data;
+
+            if (data.error) {
+                // Supabase not configured in Vercel — show config error screen
+                document.querySelector('.loading-text').innerHTML =
+                    '⚠️ Server not configured.<br><br>Go to your <strong>Vercel project → Settings → Environment Variables</strong> and add:<br><br>' +
+                    '<code>SUPABASE_URL</code><br><code>SUPABASE_SERVICE_KEY</code><br><br>Then redeploy.';
+                document.querySelector('.spinner').style.display = 'none';
+                return;
+            }
+
+            // Set SQL editor link if we got the project ref
+            if (data.sqlEditorUrl) {
+                document.getElementById('sqlEditorLink').href = data.sqlEditorUrl;
+            }
 
             if (!data.tablesExist) {
-                document.getElementById('sqlBox').textContent = data.setupSql;
-                document.getElementById('sqlEditorLink').href = data.sqlEditorUrl;
                 show('screen-db');
             } else if (!data.adminPasswordSet) {
                 show('screen-password');
@@ -265,7 +289,7 @@
                 show('screen-login');
             }
         } catch (e) {
-            document.querySelector('.loading-text').textContent = 'Could not connect to server. Check your Vercel environment variables.';
+            document.querySelector('.loading-text').textContent = 'Could not connect to server.';
             document.querySelector('.spinner').style.display = 'none';
         }
     }
@@ -283,7 +307,7 @@
     }
 
     function copySql() {
-        navigator.clipboard.writeText(setupData.setupSql);
+        navigator.clipboard.writeText(SETUP_SQL);
         showStatus('status-db', 'SQL copied to clipboard.', 'success');
     }
 
