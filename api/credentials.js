@@ -70,7 +70,7 @@ export default async function handler(req, res) {
 
         if (records.length === 0) return res.status(400).json({ error: 'No valid credentials provided' });
 
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/credentials`, {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/credentials?on_conflict=service_name,key_name`, {
             method: 'POST',
             headers: { ...supaHeaders, 'Prefer': 'resolution=merge-duplicates,return=representation' },
             body: JSON.stringify(records),

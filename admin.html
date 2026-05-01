@@ -96,7 +96,6 @@
         <div class="steps">
             <div class="step-dot active"></div>
             <div class="step-dot"></div>
-            <div class="step-dot"></div>
         </div>
         <div class="card-icon">🗄️</div>
         <div class="card-title">Set up your database</div>
@@ -119,7 +118,6 @@
         <div class="steps">
             <div class="step-dot done"></div>
             <div class="step-dot active"></div>
-            <div class="step-dot"></div>
         </div>
         <div class="card-icon">🔐</div>
         <div class="card-title">Choose a password</div>
@@ -137,34 +135,6 @@
     </div>
 </div>
 
-<!-- Step 3: Add GitHub token -->
-<div class="screen" id="screen-github">
-    <div class="card">
-        <div class="steps">
-            <div class="step-dot done"></div>
-            <div class="step-dot done"></div>
-            <div class="step-dot active"></div>
-        </div>
-        <div class="card-icon">🐙</div>
-        <div class="card-title">Connect GitHub</div>
-        <div class="card-subtitle">This lets the system push code and manage your repo automatically.</div>
-        <div id="status-github" class="status"></div>
-        <div class="field">
-            <label>GitHub username</label>
-            <input type="text" id="gh-username" placeholder="e.g. thebodyhqtest">
-        </div>
-        <div class="field">
-            <label>Personal access token</label>
-            <input type="password" id="gh-token" placeholder="ghp_...">
-            <div class="field-hint">
-                Get your token at <a href="https://github.com/settings/tokens/new?scopes=repo&description=Health+Dashboard" target="_blank">github.com/settings/tokens →</a><br>
-                Select scope: <strong>repo</strong> (full control)
-            </div>
-        </div>
-        <button class="btn btn-primary" onclick="saveGithub()">Save & Finish Setup →</button>
-        <button class="btn btn-secondary" onclick="showDashboard()">Skip for now</button>
-    </div>
-</div>
 
 <!-- Login -->
 <div class="screen" id="screen-login">
@@ -337,25 +307,6 @@ ALTER TABLE credentials ENABLE ROW LEVEL SECURITY;`;
         if (!res.ok) return showStatus('status-password', data.error, 'error');
 
         adminPassword = pw1;
-        show('screen-github');
-    }
-
-    async function saveGithub() {
-        const username = document.getElementById('gh-username').value.trim();
-        const token = document.getElementById('gh-token').value.trim();
-        if (!username || !token) return showStatus('status-github', 'Please fill in both fields.', 'error');
-
-        const res = await fetch('/api/credentials', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
-            body: JSON.stringify({ credentials: [
-                { service_name: 'github', key_name: 'username', key_value: username },
-                { service_name: 'github', key_name: 'token', key_value: token }
-            ]})
-        });
-        const data = await res.json();
-        if (!res.ok) return showStatus('status-github', data.error, 'error');
-
         showDashboard();
     }
 
