@@ -230,12 +230,12 @@
         <button class="btn btn-primary" onclick="saveAll()">Save All</button>
         <div id="save-progress" style="font-size:12px;color:#666;margin-top:8px;text-align:center;"></div>
 
-        <div class="section" style="margin-top:24px;border-top:1px solid #1E1E1E;padding-top:24px;">
+        <div class="section" id="section-downloads" style="display:none;margin-top:24px;border-top:1px solid #1E1E1E;padding-top:24px;">
             <div class="section-title">Claude Code Setup</div>
             <div style="font-size:13px;color:#666;margin-bottom:16px;">Download both files, unzip the repo, put the <code>.env</code> inside it, then open that folder in Claude Code.</div>
             <div style="display:flex;gap:10px;flex-wrap:wrap;">
                 <button class="btn btn-secondary" onclick="downloadConfig()" style="width:auto;padding:10px 20px;font-size:13px;margin:0;">⬇ Download .env</button>
-                <button class="btn btn-secondary" onclick="downloadRepo()" id="btn-download-repo" style="width:auto;padding:10px 20px;font-size:13px;margin:0;" disabled>⬇ Download Repo (ZIP)</button>
+                <button class="btn btn-secondary" onclick="downloadRepo()" id="btn-download-repo" style="width:auto;padding:10px 20px;font-size:13px;margin:0;">⬇ Download Repo (ZIP)</button>
             </div>
         </div>
     </div>
@@ -379,9 +379,8 @@ ALTER TABLE credentials ENABLE ROW LEVEL SECURITY;`;
             if (val) input.value = val;
         });
 
-        const repoUrl = data?.github?.repo_url;
-        const repoBtn = document.getElementById('btn-download-repo');
-        if (repoUrl) repoBtn.disabled = false;
+        // Show download section for returning users who already have credentials
+        document.getElementById('section-downloads').style.display = 'block';
 
         const customContainer = document.getElementById('customFields');
         customContainer.innerHTML = '';
@@ -452,6 +451,7 @@ ALTER TABLE credentials ENABLE ROW LEVEL SECURITY;`;
                     let msg = `Saved ${data.saved} credential(s). Tables created.`;
                     if (tableData.telegramSetup) msg += ` ${tableData.telegramSetup}.`;
                     showStatus('status-dashboard', msg, 'success');
+                    document.getElementById('section-downloads').style.display = 'block';
                 } else {
                     showStatus('status-dashboard', `Saved credentials but table creation failed: ${tableData.error}`, 'error');
                 }
@@ -460,6 +460,7 @@ ALTER TABLE credentials ENABLE ROW LEVEL SECURITY;`;
             }
         } else {
             showStatus('status-dashboard', `Saved ${data.saved} credential(s).`, 'success');
+            document.getElementById('section-downloads').style.display = 'block';
         }
         progress.textContent = '';
     }
