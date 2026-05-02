@@ -46,6 +46,7 @@ export default async function handler(req, res) {
     const projectRef = SUPABASE_URL.replace('https://', '').split('.')[0];
 
     const sql = `
+        -- Biomarker tests (blood, gut, NAD, etc.)
         CREATE TABLE IF NOT EXISTS biomarker_tests (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
             test_type text NOT NULL,
@@ -53,6 +54,7 @@ export default async function handler(req, res) {
             created_at timestamptz DEFAULT now()
         );
 
+        -- Individual biomarker results linked to a test
         CREATE TABLE IF NOT EXISTS biomarker_results (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
             test_id uuid REFERENCES biomarker_tests(id) ON DELETE CASCADE,
@@ -63,6 +65,30 @@ export default async function handler(req, res) {
             range_high numeric,
             category text,
             created_at timestamptz DEFAULT now()
+        );
+
+        -- Daily log from Telegram messages
+        CREATE TABLE IF NOT EXISTS daily_log (
+            id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+            telegram_message_id bigint,
+            telegram_chat_id bigint,
+            raw_text text NOT NULL,
+            processed boolean DEFAULT false,
+            processed_at timestamptz,
+            created_at timestamptz DEFAULT now()
+        );
+
+        -- Supplement stack
+        CREATE TABLE IF NOT EXISTS supplements (
+            id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+            name text NOT NULL,
+            dosage text,
+            frequency text,
+            category text,
+            notes text,
+            active boolean DEFAULT true,
+            created_at timestamptz DEFAULT now(),
+            updated_at timestamptz DEFAULT now()
         );
     `;
 
@@ -80,5 +106,34 @@ export default async function handler(req, res) {
         return res.status(500).json({ error: 'Failed to create tables', details: err });
     }
 
-    return res.status(200).json({ message: 'Tables created successfully: biomarker_tests and biomarker_results' });
+    // If Telegram bot token exists, set up the webhook
+    const tgCheck = await fetch(
+        `${SUPABASE_URL}/rest/v1/credentials?service_name=eq.telegram&key_name=eq.bot_token&select=key_value`,
+        { headers: supaHeaders }
+    );
+    const tgData = await tgCheck.json();
+    let telegramSetup = null;
+
+    if (Array.isArray(tgData) && tgData.length > 0 && tgData[0].key_value) {
+        const botToken = tgData[0].key_value;
+        // Determine the site URL from the request
+        const proto = req.headers['x-forwarded-proto'] || 'https';
+        const host = req.headers['x-forwarded-host'] || req.headers.host;
+        const siteUrl = `${proto}://${host}`;
+        const webhookUrl = `${siteUrl}/api/telegram-webhook`;
+
+        const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: webhookUrl }),
+        });
+        const tgResult = await tgRes.json();
+        telegramSetup = tgResult.ok ? 'Telegram webhook connected' : `Telegram webhook failed: ${tgResult.description}`;
+    }
+
+    return res.status(200).json({
+        message: 'All tables created successfully',
+        tables: ['biomarker_tests', 'biomarker_results', 'daily_log', 'supplements'],
+        telegramSetup,
+    });
 }

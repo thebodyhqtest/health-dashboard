@@ -1,150 +1,83 @@
-<!-- My Stack — Supplements with safety flags -->
+<!-- My Stack — Supplements from Supabase -->
 <div class="view-stack">
     <div class="card">
         <h1 class="card-title">💊 My Stack</h1>
-        <p class="card-subtitle">Your supplement inventory with safety flags cross-referenced against lab results.</p>
+        <p class="card-subtitle">Your current supplement stack.</p>
     </div>
 
     <!-- Summary cards -->
     <div class="metric-grid" id="stackSummary">
-        <div class="metric-card" data-filter="all"><div class="metric-label">Active</div><div class="metric-value" id="stackActive">0</div></div>
-        <div class="metric-card" data-filter="positive"><div class="metric-label">Positive Impacts</div><div class="metric-value" style="color:var(--success)" id="stackPositive">0</div></div>
-        <div class="metric-card" data-filter="watch"><div class="metric-label">Watch Items</div><div class="metric-value" style="color:var(--warning)" id="stackWatch">0</div></div>
-        <div class="metric-card" data-filter="alert"><div class="metric-label">Safety Alerts</div><div class="metric-value" style="color:var(--danger)" id="stackAlerts">0</div></div>
+        <div class="metric-card"><div class="metric-label">Active</div><div class="metric-value" id="stackActive">0</div></div>
+        <div class="metric-card"><div class="metric-label">Categories</div><div class="metric-value" id="stackCategories">0</div></div>
     </div>
 
-    <!-- Safety Alerts -->
-    <div id="stackAlertSection" style="display:none;">
-        <div class="card card-red">
-            <h2 class="card-title" style="font-size:16px; margin-bottom:12px;">⚠️ Safety Alerts</h2>
-            <div id="stackAlertList"></div>
-        </div>
-    </div>
-
-    <!-- Filters -->
+    <!-- Category filter -->
     <div class="filter-row" id="stackCategoryFilter"></div>
-    <div class="filter-row" id="stackTimingFilter"></div>
-    <div class="filter-row" id="stackSafetyFilter"></div>
 
-    <!-- Active Supplements -->
+    <!-- Supplement list -->
     <div id="stackList">
         <div class="empty-state">
             <h3>No supplements yet</h3>
-            <p>Tell Claude about your supplement stack — names, doses, timing — and it'll track safety flags against your lab results.</p>
-        </div>
-    </div>
-
-    <!-- Stopped Supplements (collapsible) -->
-    <div id="stackStopped" style="display:none;">
-        <div class="card">
-            <div class="expandable-header" onclick="this.nextElementSibling.classList.toggle('open')">
-                <h2 class="card-title" style="font-size:16px;">Stopped Supplements</h2>
-                <span style="color:var(--text-muted);">▾</span>
-            </div>
-            <div class="expandable-content" id="stoppedList"></div>
-        </div>
-    </div>
-
-    <!-- Change Log -->
-    <div id="stackChangelog" style="display:none;">
-        <div class="card">
-            <div class="expandable-header" onclick="this.nextElementSibling.classList.toggle('open')">
-                <h2 class="card-title" style="font-size:16px;">Change Log</h2>
-                <span style="color:var(--text-muted);">▾</span>
-            </div>
-            <div class="expandable-content" id="changelogList"></div>
+            <p>Tell your Telegram bot about your supplement stack and it'll appear here automatically.</p>
         </div>
     </div>
 </div>
 
 <script>
 async function init_my_stack() {
-    const data = await App.fetchData('supplements');
-    if (!data || !data.supplements || data.supplements.length === 0) return;
+    if (!App.supabase) return;
 
-    const active = data.supplements.filter(s => !s.stopped);
-    const stopped = data.supplements.filter(s => s.stopped);
-    const alerts = active.filter(s => s.safety === 'alert');
-    const watch = active.filter(s => s.safety === 'watch');
-    const positive = active.filter(s => s.safety === 'positive');
+    try {
+        const { data: supps, error } = await App.supabase
+            .from('supplements')
+            .select('*')
+            .order('category', { ascending: true });
 
-    // Summary
-    document.getElementById('stackActive').textContent = active.length;
-    document.getElementById('stackPositive').textContent = positive.length;
-    document.getElementById('stackWatch').textContent = watch.length;
-    document.getElementById('stackAlerts').textContent = alerts.length;
+        if (error || !supps || supps.length === 0) return;
 
-    // Safety Alerts
-    if (alerts.length > 0) {
-        document.getElementById('stackAlertSection').style.display = 'block';
-        document.getElementById('stackAlertList').innerHTML = alerts.map(a => `
-            <div class="flag-item" style="margin-bottom:8px;">
-                <span class="flag-dot red"></span>
-                <div><strong>${a.name}</strong> — ${a.alertReason || 'Review recommended'}
-                ${a.markerName ? `<div style="font-size:12px; color:var(--text-muted); margin-top:2px;">${a.markerName}: ${a.markerValue} (${a.markerStatus})</div>` : ''}</div>
-            </div>
-        `).join('');
-    }
+        const active = supps.filter(s => s.active);
+        const categories = [...new Set(active.map(s => s.category).filter(Boolean))];
 
-    // Category filter
-    const categories = [...new Set(active.map(s => s.category).filter(Boolean))];
-    document.getElementById('stackCategoryFilter').innerHTML = `<span class="pill active" data-cat="all">All</span>` +
-        categories.map(c => `<span class="pill" data-cat="${c}">${c}</span>`).join('');
+        // Summary
+        document.getElementById('stackActive').textContent = active.length;
+        document.getElementById('stackCategories').textContent = categories.length;
 
-    // Timing filter
-    const timings = [...new Set(active.map(s => s.timing).filter(Boolean))];
-    document.getElementById('stackTimingFilter').innerHTML = `<span class="pill active" data-time="all">All Timing</span>` +
-        timings.map(t => `<span class="pill" data-time="${t}">${t}</span>`).join('');
+        // Category filter
+        document.getElementById('stackCategoryFilter').innerHTML =
+            `<span class="pill active" data-cat="all">All</span>` +
+            categories.map(c => `<span class="pill" data-cat="${c}">${c}</span>`).join('');
 
-    // Active list
-    function renderList() {
-        const safetyDots = { alert: '🔴', watch: '🟡', positive: '🟢', neutral: '⚪' };
-        document.getElementById('stackList').innerHTML = active.map(s => `
-            <div class="card" style="margin-bottom:8px; padding:16px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div>
-                        <strong>${s.name}</strong> — ${s.dose || ''}
-                        <span class="pill" style="font-size:11px; margin-left:8px;">${s.category || ''}</span>
+        function render(filter) {
+            const filtered = filter === 'all' ? active : active.filter(s => s.category === filter);
+            if (filtered.length === 0) {
+                document.getElementById('stackList').innerHTML = `<div class="empty-state" style="padding:40px;"><p>No supplements in this category.</p></div>`;
+                return;
+            }
+            document.getElementById('stackList').innerHTML = filtered.map(s => `
+                <div class="card" style="margin-bottom:8px; padding:16px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong>${s.name}</strong>${s.dosage ? ' — ' + s.dosage : ''}
+                            ${s.category ? `<span class="pill" style="font-size:11px; margin-left:8px;">${s.category}</span>` : ''}
+                        </div>
                     </div>
-                    <span>${safetyDots[s.safety] || '⚪'}</span>
+                    ${s.frequency ? `<div style="font-size:13px; color:var(--text-secondary); margin-top:6px;">${s.frequency}</div>` : ''}
+                    ${s.notes ? `<div style="font-size:12px; color:var(--text-muted); margin-top:4px;">${s.notes}</div>` : ''}
                 </div>
-                <div style="font-size:13px; color:var(--text-secondary); margin-top:6px;">
-                    ${s.timing || ''} ${s.started ? `· Since ${s.started}` : ''}
-                </div>
-                ${s.targets ? `<div style="margin-top:6px;">${s.targets.map(t => `<span class="pill" style="font-size:11px; margin-right:4px;">${t}</span>`).join('')}</div>` : ''}
-                ${s.watchMarkers ? `<div style="margin-top:8px; font-size:13px;">${s.watchMarkers.map(m => `
-                    <div class="flag-item" style="padding:8px; margin-bottom:2px;">
-                        <span class="flag-dot ${m.flag === 'positive' ? 'green' : m.flag === 'watch' ? 'amber' : m.flag === 'alert' ? 'red' : 'green'}"></span>
-                        <span><strong>${m.name}</strong>: ${m.value || '—'} — ${m.reason || ''}</span>
-                    </div>
-                `).join('')}</div>` : ''}
-            </div>
-        `).join('');
-    }
+            `).join('');
+        }
 
-    renderList();
+        render('all');
 
-    // Stopped
-    if (stopped.length > 0) {
-        document.getElementById('stackStopped').style.display = 'block';
-        document.getElementById('stoppedList').innerHTML = stopped.map(s => `
-            <div class="flag-item" style="margin-bottom:4px; opacity:0.7;">
-                <span>⬚</span>
-                <div><strong>${s.name}</strong> — ${s.dose || ''} · Stopped: ${s.stoppedDate || '—'}
-                ${s.stoppedReason ? `<div style="font-size:12px; color:var(--text-muted);">Reason: ${s.stoppedReason}</div>` : ''}</div>
-            </div>
-        `).join('');
-    }
-
-    // Changelog
-    if (data.changelog && data.changelog.length > 0) {
-        document.getElementById('stackChangelog').style.display = 'block';
-        document.getElementById('changelogList').innerHTML = data.changelog.map(c => `
-            <div class="flag-item" style="margin-bottom:4px;">
-                <span style="font-size:12px; color:var(--text-muted); min-width:80px;">${c.date}</span>
-                <span><span class="pill" style="font-size:11px;">${c.action}</span> <strong>${c.name}</strong>${c.detail ? ` — ${c.detail}` : ''}</span>
-            </div>
-        `).join('');
+        document.querySelectorAll('#stackCategoryFilter .pill').forEach(pill => {
+            pill.addEventListener('click', () => {
+                document.querySelectorAll('#stackCategoryFilter .pill').forEach(p => p.classList.remove('active'));
+                pill.classList.add('active');
+                render(pill.dataset.cat);
+            });
+        });
+    } catch (e) {
+        console.error('Stack fetch error:', e);
     }
 }
 </script>

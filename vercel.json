@@ -1,4 +1,10 @@
 {
   "buildCommand": "echo skip",
-  "outputDirectory": "."
+  "outputDirectory": ".",
+  "crons": [
+    {
+      "path": "/api/parse-logs",
+      "schedule": "0 0 * * *"
+    }
+  ]
 }

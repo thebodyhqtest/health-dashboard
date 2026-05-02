@@ -5,9 +5,6 @@
         <p class="card-subtitle" id="overviewSubtitle">Your health at a glance.</p>
     </div>
 
-    <!-- Bio Age Hero (if any bio age data exists) -->
-    <div id="bioAgeSection" style="display:none;"></div>
-
     <!-- Key Vitals Strip -->
     <div id="vitalsSection" style="display:none;">
         <h2 style="font-size:16px; margin-bottom:12px; color:var(--text-secondary);">Key Vitals</h2>
@@ -19,7 +16,6 @@
         <div class="card card-red">
             <div class="card-header">
                 <h2 class="card-title">🚨 Needs Attention</h2>
-                <span id="flagsMore" style="font-size:13px; color:var(--text-muted);"></span>
             </div>
             <div class="flag-list" id="flagsList"></div>
         </div>
@@ -35,32 +31,23 @@
         </div>
     </div>
 
-    <!-- Systems Grid -->
-    <div id="systemsSection" style="display:none;">
-        <h2 style="font-size:16px; margin-bottom:12px; color:var(--text-secondary);">📊 Systems</h2>
-        <div class="system-grid" id="systemsGrid"></div>
-    </div>
-
-    <!-- Stack Summary -->
-    <div id="stackSection" style="display:none;"></div>
-
-    <!-- Upcoming -->
-    <div id="upcomingSection" style="display:none;">
+    <!-- Supplement Stack -->
+    <div id="stackSection" style="display:none;">
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">📅 Upcoming</h2>
+                <h2 class="card-title">💊 My Stack</h2>
             </div>
-            <div id="upcomingList"></div>
+            <div id="stackList"></div>
         </div>
     </div>
 
-    <!-- Recent Activity -->
-    <div id="activitySection" style="display:none;">
+    <!-- Recent Log -->
+    <div id="logSection" style="display:none;">
         <div class="card">
             <div class="card-header">
-                <h2 class="card-title">📋 Recent Activity</h2>
+                <h2 class="card-title">📋 Recent Log</h2>
             </div>
-            <div id="activityList"></div>
+            <div id="logList"></div>
         </div>
     </div>
 
@@ -73,146 +60,131 @@
             <p>Your dashboard is ready. Here's how to add your data:</p>
             <br>
             <p><strong style="color: var(--accent);">1. Upload blood work</strong><br>
-            Tell Claude: "Here are my blood test results" and paste or upload your data.</p>
+            Send your blood test results via Telegram to your bot.</p>
             <br>
-            <p><strong style="color: var(--accent);">2. Add other tests</strong><br>
-            VO2 Max, DEXA scan, gut biome, DNA methylation — just tell Claude what you have.</p>
+            <p><strong style="color: var(--accent);">2. Track daily</strong><br>
+            Message your Telegram bot with supplements, measurements, or notes — it all gets logged automatically.</p>
             <br>
-            <p><strong style="color: var(--accent);">3. Track daily</strong><br>
-            Blood pressure, sleep, exercise, nutrition — tell Claude and it appears in your Tracking tab.</p>
-            <br>
-            <p><strong style="color: var(--accent);">4. Build your protocol</strong><br>
-            Tell Claude about your supplements, routines, and health goals.</p>
-            <br>
-            <p style="color: var(--text-muted); font-size: 13px;">
-                Every time you update data, the dashboard reflects it instantly — no redeployment needed.
-            </p>
+            <p><strong style="color: var(--accent);">3. Watch it grow</strong><br>
+            Your dashboard updates as data comes in. No coding needed.</p>
         </div>
     </div>
 </div>
 
 <script>
 async function init_overview() {
-    const data = await App.fetchData('overview');
+    if (!App.supabase) return;
 
-    // If no API or no data, just show getting started
-    if (!data || !data.hasData) {
-        document.getElementById('gettingStarted').style.display = 'block';
-        return;
-    }
+    let hasAnyData = false;
 
-    // Hide getting started if we have data
-    document.getElementById('gettingStarted').style.display = 'none';
+    // 1. Fetch latest blood data for key vitals + flags + wins
+    try {
+        const bloodData = await App.fetchData('blood');
+        if (bloodData && bloodData.tests && bloodData.tests.length > 0) {
+            hasAnyData = true;
+            const latest = bloodData.tests[0];
+            const markers = latest.markers || [];
 
-    // Bio Age
-    if (data.bioAge) {
-        const section = document.getElementById('bioAgeSection');
-        section.style.display = 'block';
-        let html = '<div class="metric-grid">';
-        for (const age of data.bioAge) {
-            html += `<div class="metric-card">
-                <div class="metric-label">${age.source}</div>
-                <div class="metric-value">${App.formatValue(age.value)} <span class="metric-unit">yrs</span></div>
-                <div class="metric-sublabel">${age.gap > 0 ? age.gap + ' yrs older' : Math.abs(age.gap) + ' yrs younger'}</div>
-            </div>`;
+            // Key vitals — pick important ones
+            const vitalNames = ['Glucose', 'Total Cholesterol', 'HDL', 'LDL', 'Triglycerides', 'HbA1c', 'TSH', 'Vitamin D', 'Testosterone', 'Estradiol'];
+            const vitals = markers.filter(m => vitalNames.some(v => m.name.toLowerCase().includes(v.toLowerCase())));
+
+            if (vitals.length > 0) {
+                document.getElementById('vitalsSection').style.display = 'block';
+                document.getElementById('vitalsGrid').innerHTML = vitals.slice(0, 6).map(v => {
+                    const status = (v.range.low != null && v.range.high != null)
+                        ? App.getStatus(v.value, v.range)
+                        : 'normal';
+                    return `<div class="metric-card">
+                        <div class="metric-label">${v.name}</div>
+                        <div class="metric-value">${App.formatValue(v.value)} <span class="metric-unit">${v.unit || ''}</span></div>
+                        ${App.badge(status, status === 'normal' || status === 'optimal' ? 'IN RANGE' : 'OUT')}
+                    </div>`;
+                }).join('');
+            }
+
+            // Flags — out of range
+            const outOfRange = markers.filter(m =>
+                m.range.low != null && m.range.high != null &&
+                (m.value < m.range.low || m.value > m.range.high)
+            );
+            if (outOfRange.length > 0) {
+                document.getElementById('flagsSection').style.display = 'block';
+                document.getElementById('flagsList').innerHTML = outOfRange.map(f => {
+                    const dir = f.value < f.range.low ? 'LOW' : 'HIGH';
+                    return `<div class="flag-item">
+                        <span class="flag-dot red"></span>
+                        <span><strong>${f.name}</strong> — ${App.formatValue(f.value)} ${f.unit} (${dir}, range ${f.range.low}–${f.range.high})</span>
+                    </div>`;
+                }).join('');
+            }
+
+            // Wins — in range
+            const inRange = markers.filter(m =>
+                m.range.low != null && m.range.high != null &&
+                m.value >= m.range.low && m.value <= m.range.high
+            );
+            if (inRange.length > 0) {
+                document.getElementById('winsSection').style.display = 'block';
+                document.getElementById('winsList').innerHTML = inRange.slice(0, 5).map(w =>
+                    `<div class="flag-item">
+                        <span class="flag-dot green"></span>
+                        <span><strong>${w.name}</strong> — ${App.formatValue(w.value)} ${w.unit} ✓</span>
+                    </div>`
+                ).join('');
+            }
         }
-        html += '</div>';
-        section.innerHTML = html;
-    }
+    } catch (e) { console.error('Overview blood fetch:', e); }
 
-    // Key Vitals
-    if (data.vitals && data.vitals.length > 0) {
-        document.getElementById('vitalsSection').style.display = 'block';
-        document.getElementById('vitalsGrid').innerHTML = data.vitals.map(v => `
-            <div class="metric-card">
-                <div class="metric-label">${v.label}</div>
-                <div class="metric-value">${App.formatValue(v.value)} <span class="metric-unit">${v.unit || ''}</span></div>
-                ${v.trend ? `<div class="metric-sublabel">${v.trend}</div>` : ''}
-                ${v.status ? App.badge(v.status) : ''}
-            </div>
-        `).join('');
-    }
+    // 2. Fetch supplements
+    try {
+        const { data: supps, error } = await App.supabase
+            .from('supplements')
+            .select('*')
+            .eq('active', true)
+            .order('category', { ascending: true });
 
-    // Needs Attention
-    if (data.flags && data.flags.length > 0) {
-        document.getElementById('flagsSection').style.display = 'block';
-        const show = data.flags.slice(0, 8);
-        const remaining = data.flags.length - 8;
-        document.getElementById('flagsList').innerHTML = show.map(f => `
-            <div class="flag-item">
-                <span class="flag-dot ${f.severity || 'red'}"></span>
-                <span><strong>${f.name}</strong> — ${f.detail}</span>
-            </div>
-        `).join('');
-        if (remaining > 0) {
-            document.getElementById('flagsMore').textContent = `+${remaining} more`;
+        if (!error && supps && supps.length > 0) {
+            hasAnyData = true;
+            document.getElementById('stackSection').style.display = 'block';
+            document.getElementById('stackList').innerHTML = supps.map(s =>
+                `<div class="flag-item">
+                    <span>💊</span>
+                    <span style="flex:1"><strong>${s.name}</strong>${s.dosage ? ' — ' + s.dosage : ''}${s.frequency ? ' (' + s.frequency + ')' : ''}</span>
+                    <span style="font-size:11px;color:var(--text-muted)">${s.category || ''}</span>
+                </div>`
+            ).join('');
         }
-    }
+    } catch (e) { console.error('Overview supplements fetch:', e); }
 
-    // Wins
-    if (data.wins && data.wins.length > 0) {
-        document.getElementById('winsSection').style.display = 'block';
-        document.getElementById('winsList').innerHTML = data.wins.map(w => `
-            <div class="flag-item">
-                <span class="flag-dot green"></span>
-                <span><strong>${w.name}</strong> — ${w.detail}</span>
-            </div>
-        `).join('');
-    }
+    // 3. Fetch recent daily log
+    try {
+        const { data: logs, error } = await App.supabase
+            .from('daily_log')
+            .select('raw_text, created_at')
+            .order('created_at', { ascending: false })
+            .limit(5);
 
-    // Systems
-    if (data.systems && data.systems.length > 0) {
-        document.getElementById('systemsSection').style.display = 'block';
-        document.getElementById('systemsGrid').innerHTML = data.systems.map(s => `
-            <div class="system-card ${s.color || ''}" onclick="location.hash='${s.link || ''}'">
-                <div class="system-card-header">
-                    <span class="system-card-title">${s.name}</span>
-                    <span class="system-card-icon">${s.icon || ''}</span>
-                </div>
-                <div class="system-card-metric">${s.headline}</div>
-                <div class="system-card-detail">${s.detail}</div>
-                <div class="system-card-date">Last tested: ${s.date || 'N/A'}</div>
-            </div>
-        `).join('');
-    }
+        if (!error && logs && logs.length > 0) {
+            hasAnyData = true;
+            document.getElementById('logSection').style.display = 'block';
+            document.getElementById('logList').innerHTML = logs.map(l => {
+                const d = new Date(l.created_at);
+                const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const preview = l.raw_text.length > 80 ? l.raw_text.slice(0, 80) + '…' : l.raw_text;
+                return `<div class="flag-item">
+                    <span>💬</span>
+                    <span style="flex:1">${preview}</span>
+                    <span style="font-size:11px;color:var(--text-muted)">${dateStr}</span>
+                </div>`;
+            }).join('');
+        }
+    } catch (e) { console.error('Overview log fetch:', e); }
 
-    // Stack Summary
-    if (data.stack) {
-        document.getElementById('stackSection').style.display = 'block';
-        document.getElementById('stackSection').innerHTML = `
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">💊 Stack</h2>
-                </div>
-                <div class="metric-grid">
-                    <div class="metric-card"><div class="metric-label">Active</div><div class="metric-value">${data.stack.active || 0}</div></div>
-                    <div class="metric-card"><div class="metric-label">Stopped</div><div class="metric-value">${data.stack.stopped || 0}</div></div>
-                    <div class="metric-card"><div class="metric-label">Alerts</div><div class="metric-value" style="color:var(--danger)">${data.stack.alerts || 0}</div></div>
-                </div>
-            </div>`;
-    }
-
-    // Upcoming
-    if (data.upcoming && data.upcoming.length > 0) {
-        document.getElementById('upcomingSection').style.display = 'block';
-        document.getElementById('upcomingList').innerHTML = data.upcoming.map(u => `
-            <div class="flag-item">
-                <span>${u.icon || '📅'}</span>
-                <span><strong>${u.name}</strong> — ${u.date}${u.detail ? ' — ' + u.detail : ''}</span>
-            </div>
-        `).join('');
-    }
-
-    // Recent Activity
-    if (data.activity && data.activity.length > 0) {
-        document.getElementById('activitySection').style.display = 'block';
-        document.getElementById('activityList').innerHTML = data.activity.map(a => `
-            <div class="flag-item">
-                <span>${a.icon || '📋'}</span>
-                <span style="flex:1"><strong>${a.label}</strong> ${a.detail || ''}</span>
-                <span style="font-size:12px; color:var(--text-muted)">${a.date}</span>
-            </div>
-        `).join('');
+    // Show/hide getting started
+    document.getElementById('gettingStarted').style.display = hasAnyData ? 'none' : 'block';
+    if (hasAnyData) {
+        document.getElementById('overviewSubtitle').textContent = 'Your health at a glance.';
     }
 }
 </script>
