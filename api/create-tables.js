@@ -116,10 +116,10 @@ export default async function handler(req, res) {
 
     if (Array.isArray(tgData) && tgData.length > 0 && tgData[0].key_value) {
         const botToken = tgData[0].key_value;
-        // Determine the site URL from the request
-        const proto = req.headers['x-forwarded-proto'] || 'https';
-        const host = req.headers['x-forwarded-host'] || req.headers.host;
-        const siteUrl = `${proto}://${host}`;
+        const { siteUrl } = req.body || {};
+        if (!siteUrl) {
+            telegramSetup = 'Skipped webhook — site URL not provided';
+        } else {
         const webhookUrl = `${siteUrl}/api/telegram-webhook`;
 
         const tgRes = await fetch(`https://api.telegram.org/bot${botToken}/setWebhook`, {
@@ -129,6 +129,7 @@ export default async function handler(req, res) {
         });
         const tgResult = await tgRes.json();
         telegramSetup = tgResult.ok ? 'Telegram webhook connected' : `Telegram webhook failed: ${tgResult.description}`;
+        } // end else
     }
 
     return res.status(200).json({

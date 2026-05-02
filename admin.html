@@ -444,7 +444,8 @@ ALTER TABLE credentials ENABLE ROW LEVEL SECURITY;`;
             try {
                 const tableRes = await fetch('/api/create-tables', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword }
+                    headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword },
+                    body: JSON.stringify({ siteUrl: window.location.origin })
                 });
                 const tableData = await tableRes.json();
                 if (tableRes.ok) {
