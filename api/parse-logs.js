@@ -65,6 +65,9 @@ Return ONLY valid JSON with this structure:
   ],
   "supplements": [
     { "name": "Vitamin D3", "dosage": "5000 IU", "frequency": "daily", "category": "Vitamins" }
+  ],
+  "symptoms": [
+    { "symptom": "headache", "severity": "mild|moderate|severe", "notes": "optional context" }
   ]
 }
 
@@ -74,6 +77,8 @@ Rules:
 - If range is not given, set range_low and range_high to null.
 - test_type should be: blood, gut, nad, gi, cac, dna-methylation, genetics, vo2max, dexa, inbody
 - Use the date from the message timestamp if no date is stated.
+- For symptoms, extract any physical or mental health observations (e.g. "slept poorly", "headache", "high energy", "brain fog").
+- Normalize symptom names to lowercase. Infer severity from context if described (e.g. "terrible headache" = severe), otherwise set to null.
 - If a message has no health data, skip it.
 - Return empty arrays if nothing to extract.
 
@@ -104,6 +109,7 @@ ${messages}`
 
     let insertedBiomarkers = 0;
     let insertedSupplements = 0;
+    let insertedSymptoms = 0;
 
     // Insert biomarkers
     if (parsed.biomarkers && parsed.biomarkers.length > 0) {
@@ -160,6 +166,22 @@ ${messages}`
         if (suppRes.ok) insertedSupplements += supps.length;
     }
 
+    // Insert symptoms
+    if (parsed.symptoms && parsed.symptoms.length > 0) {
+        const symptoms = parsed.symptoms.map(s => ({
+            symptom: s.symptom,
+            severity: s.severity || null,
+            notes: s.notes || null,
+        }));
+
+        const symRes = await fetch(`${SUPABASE_URL}/rest/v1/daily_symptoms`, {
+            method: 'POST',
+            headers: supaHeaders,
+            body: JSON.stringify(symptoms),
+        });
+        if (symRes.ok) insertedSymptoms += symptoms.length;
+    }
+
     // Mark logs as processed
     const logIds = logs.map(l => l.id);
     for (const id of logIds) {
@@ -175,5 +197,6 @@ ${messages}`
         processed: logs.length,
         insertedBiomarkers,
         insertedSupplements,
+        insertedSymptoms,
     });
 }
