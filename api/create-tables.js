@@ -78,6 +78,17 @@ export default async function handler(req, res) {
             created_at timestamptz DEFAULT now()
         );
 
+        -- Daily symptoms from Telegram logs
+        CREATE TABLE IF NOT EXISTS daily_symptoms (
+            id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+            log_id uuid REFERENCES daily_log(id) ON DELETE SET NULL,
+            symptom text NOT NULL,
+            severity text,
+            logged_at timestamptz DEFAULT now(),
+            notes text,
+            created_at timestamptz DEFAULT now()
+        );
+
         -- Supplement stack
         CREATE TABLE IF NOT EXISTS supplements (
             id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -134,7 +145,7 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
         message: 'All tables created successfully',
-        tables: ['biomarker_tests', 'biomarker_results', 'daily_log', 'supplements'],
+        tables: ['biomarker_tests', 'biomarker_results', 'daily_log', 'daily_symptoms', 'supplements'],
         telegramSetup,
     });
 }
