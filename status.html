@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status — Health Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#0A0A0A; color:#fff; font-family:'Inter',sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+        .container { width:100%; max-width:560px; }
+        .card { background:#141414; border:1px solid #1E1E1E; border-radius:16px; padding:36px; margin-bottom:16px; }
+        .card-title { font-size:22px; font-weight:700; margin-bottom:8px; }
+        .card-subtitle { font-size:14px; color:#666; line-height:1.6; margin-bottom:24px; }
+
+        /* Login */
+        .login-card { text-align:center; }
+        label { display:block; font-size:12px; color:#A0A0A0; margin-bottom:6px; font-weight:500; text-align:left; }
+        input { width:100%; padding:12px 14px; background:#0A0A0A; border:1px solid #2A2A2A; border-radius:8px; color:#fff; font-size:14px; font-family:'Inter',sans-serif; }
+        input:focus { outline:none; border-color:#C8FF00; }
+        .btn { width:100%; padding:13px; border:none; border-radius:8px; font-size:15px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; margin-top:12px; }
+        .btn-primary { background:#C8FF00; color:#0A0A0A; }
+        .btn-primary:hover { background:#D4FF33; }
+        .btn-secondary { background:transparent; color:#A0A0A0; border:1px solid #2A2A2A; }
+        .btn-secondary:hover { border-color:#666; color:#fff; }
+        .error { color:#F87171; font-size:13px; margin-top:8px; }
+
+        /* Checks */
+        .check { display:flex; align-items:flex-start; gap:14px; padding:18px 0; border-bottom:1px solid #1E1E1E; }
+        .check:last-child { border-bottom:none; }
+        .check-icon { font-size:20px; margin-top:2px; flex-shrink:0; }
+        .check-body { flex:1; }
+        .check-name { font-size:14px; font-weight:600; margin-bottom:4px; }
+        .check-msg { font-size:13px; color:#A0A0A0; line-height:1.5; }
+        .check-msg.fail { color:#F87171; }
+        .check-detail { font-size:12px; color:#444; margin-top:4px; }
+
+        /* Summary bar */
+        .summary { display:flex; gap:16px; margin-bottom:24px; }
+        .summary-item { flex:1; text-align:center; padding:16px; background:#0A0A0A; border-radius:8px; }
+        .summary-num { font-size:28px; font-weight:700; }
+        .summary-label { font-size:11px; color:#666; margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+        .green { color:#4ADE80; }
+        .red { color:#F87171; }
+
+        .spinner { width:24px; height:24px; border:3px solid #222; border-top-color:#C8FF00; border-radius:50%; animation:spin .8s linear infinite; margin:0 auto; }
+        @keyframes spin { to { transform:rotate(360deg); } }
+        .loading { text-align:center; color:#666; font-size:14px; padding:40px 0; }
+
+        .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+        .topbar a { color:#666; text-decoration:none; font-size:13px; }
+        .topbar a:hover { color:#fff; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Login -->
+    <div id="screen-login">
+        <div class="card login-card">
+            <div style="font-size:36px;margin-bottom:16px;">🩺</div>
+            <div class="card-title">System Status</div>
+            <div class="card-subtitle">Enter your admin password to run health checks.</div>
+            <div style="text-align:left;">
+                <label>Admin password</label>
+                <input type="password" id="pw" placeholder="Admin password" autofocus>
+            </div>
+            <button class="btn btn-primary" onclick="runChecks()">Run Checks</button>
+            <div class="error" id="loginError"></div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="screen-results" style="display:none;">
+        <div class="topbar">
+            <div class="card-title">🩺 System Status</div>
+            <a href="/admin.html">← Admin</a>
+        </div>
+
+        <div class="summary" id="summary"></div>
+
+        <div class="card" id="checksContainer">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div style="margin-top:12px;">Running checks…</div>
+            </div>
+        </div>
+
+        <button class="btn btn-secondary" onclick="runChecks()" style="margin-top:8px;">Re-run Checks</button>
+    </div>
+</div>
+
+<script>
+    let adminPassword = '';
+
+    document.getElementById('pw').addEventListener('keydown', e => {
+        if (e.key === 'Enter') runChecks();
+    });
+
+    async function runChecks() {
+        const pw = document.getElementById('pw')?.value || adminPassword;
+        if (!pw) return;
+        adminPassword = pw;
+
+        document.getElementById('screen-login').style.display = 'none';
+        document.getElementById('screen-results').style.display = 'block';
+        document.getElementById('checksContainer').innerHTML = '<div class="loading"><div class="spinner"></div><div style="margin-top:12px;">Running checks…</div></div>';
+        document.getElementById('summary').innerHTML = '';
+
+        try {
+            const res = await fetch('/api/status', {
+                headers: { 'x-admin-password': adminPassword }
+            });
+
+            if (res.status === 401) {
+                document.getElementById('screen-login').style.display = 'block';
+                document.getElementById('screen-results').style.display = 'none';
+                document.getElementById('loginError').textContent = 'Wrong password.';
+                return;
+            }
+
+            const data = await res.json();
+            renderResults(data);
+        } catch (e) {
+            document.getElementById('checksContainer').innerHTML = '<div class="loading" style="color:#F87171;">Could not connect to server.</div>';
+        }
+    }
+
+    function renderResults(data) {
+        const checks = [
+            { key: 'supabase', name: 'Supabase Connection', icon: '🗄️' },
+            { key: 'tables', name: 'Database Tables', icon: '📋' },
+            { key: 'telegram', name: 'Telegram Bot', icon: '💬' },
+            { key: 'github', name: 'GitHub Access', icon: '🐙' },
+            { key: 'anthropic', name: 'Anthropic API', icon: '🧠' },
+            { key: 'parser', name: 'Nightly Parser', icon: '⚙️' },
+        ];
+
+        let passCount = 0;
+        let failCount = 0;
+
+        let html = '';
+        for (const check of checks) {
+            const d = data[check.key];
+            if (!d) continue;
+
+            if (d.ok) passCount++; else failCount++;
+
+            const icon = d.ok ? '✅' : '❌';
+            const msgClass = d.ok ? '' : 'fail';
+
+            let details = '';
+            if (check.key === 'tables' && d.details) {
+                details = Object.entries(d.details).map(([name, ok]) =>
+                    `<span style="margin-right:8px;">${ok ? '✅' : '❌'} ${name}</span>`
+                ).join('');
+                details = `<div class="check-detail">${details}</div>`;
+            }
+            if (check.key === 'telegram' && d.webhook) {
+                details += `<div class="check-detail">Webhook: ${d.webhook}</div>`;
+                if (d.lastError) details += `<div class="check-detail" style="color:#F87171;">Last error: ${d.lastError}</div>`;
+            }
+            if (check.key === 'github' && d.permissions) {
+                details += `<div class="check-detail">${d.permissions}</div>`;
+            }
+            if (check.key === 'parser' && d.pending > 0) {
+                details += `<div class="check-detail">${d.pending} message(s) waiting</div>`;
+            }
+
+            html += `<div class="check">
+                <span class="check-icon">${icon}</span>
+                <div class="check-body">
+                    <div class="check-name">${check.icon} ${check.name}</div>
+                    <div class="check-msg ${msgClass}">${d.message}</div>
+                    ${details}
+                </div>
+            </div>`;
+        }
+
+        document.getElementById('checksContainer').innerHTML = html;
+
+        document.getElementById('summary').innerHTML = `
+            <div class="summary-item">
+                <div class="summary-num green">${passCount}</div>
+                <div class="summary-label">Passing</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-num ${failCount > 0 ? 'red' : 'green'}">${failCount}</div>
+                <div class="summary-label">Failing</div>
+            </div>
+            <div class="summary-item">
+                <div class="summary-num">${passCount + failCount}</div>
+                <div class="summary-label">Total</div>
+            </div>
+        `;
+    }
+</script>
+</body>
+</html>
